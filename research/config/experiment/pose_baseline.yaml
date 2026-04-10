@@ -1,0 +1,15 @@
+# @package _global_
+project:
+  experiment_name: "Pose_Estimation_Baseline"
+  note: "Початковий тест конвеєра для Pose"
+
+data:
+  source_type: "kaggle"
+  kaggle_id: "spiowm/bee-raw-dataset" # Змініть на реальний ID
+  kaggle_file: "pose.zip" # Завантажити ЛИШЕ архів з позами!
+  target_dir: "datasets"
+  dataset_path: "datasets/pose/data.yaml" # Kaggle розпакує позу сюди
+
+model:
+  name: "yolo11s-pose.pt" # Для pose
+  task: "pose"

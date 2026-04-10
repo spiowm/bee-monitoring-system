@@ -1,7 +1,15 @@
 [project]
 name = "research"
 version = "0.1.0"
-description = "Add your description here"
+description = "Research environment for bee monitoring system"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "dagshub>=0.6.9",
+    "hydra-core>=1.3.2",
+    "jupyter>=1.1.1",
+    "kaggle>=2.0.1",
+    "mlflow>=3.11.1",
+    "python-dotenv>=1.2.2",
+    "ultralytics>=8.4.37",
+]

@@ -1,0 +1,26 @@
+defaults:
+  - experiment: pose_baseline # За замовчуванням запускаємо цей експеримент
+  - _self_
+
+# Глобальні налаштування пайплайну
+project:
+  dagshub_owner: "spiowm"
+  dagshub_repo: "bee-monitoring-system"
+  experiment_name: "YOLO_Default"
+  note: ""
+
+# Глобальні гіперпараметри навчання
+# (можуть бути перевизначені в окремому експерименті або з CLI)
+training:
+  epochs: 1
+  batch: 4
+  imgsz: 1920
+  seed: 42
+  device: "" 
+  optimizer: "AdamW"
+  lr0: 0.001
+  patience: 20
+  workers: 4
+  save_period: 10 
+  project: "runs" 
+  name: "train_run"

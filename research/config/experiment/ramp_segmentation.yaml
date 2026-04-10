@@ -1,0 +1,15 @@
+# @package _global_
+project:
+  experiment_name: "Ramp_Segmentation"
+  note: "Сегментація рампи (виявлення льотка)"
+
+data:
+  source_type: "kaggle"
+  kaggle_id: "spiowm/bee-raw-dataset" 
+  kaggle_file: "ramp.zip" # Завантажити ЛИШЕ архів з рампою!
+  target_dir: "datasets"
+  dataset_path: "datasets/ramp/data.yaml"
+
+model:
+  name: "yolo11s-seg.pt" 
+  task: "segment"

@@ -1,0 +1,18 @@
+# Налаштування середовища та конфіги
+.env
+.venv/
+__pycache__/
+*.pyc
+
+# Датасети та ваги моделей
+datasets/
+runs/
+mlruns/
+*.pt
+*.onnx
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Системні файли
+.DS_Store
