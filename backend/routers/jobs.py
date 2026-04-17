@@ -1,9 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from pathlib import Path
 import uuid
 import os
 import json
 from datetime import datetime
-from models.schemas import ProcessConfig, VizConfig, JobCreateResponse
+from schemas.schemas import ProcessConfig, VizConfig, JobCreateResponse
 from services.video_processor import process_video
 from db.mongodb import get_db
 

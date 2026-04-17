@@ -27,3 +27,8 @@ explicit = true
 [tool.uv.sources]
 torch = { index = "pytorch" }
 torchvision = { index = "pytorch" }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
