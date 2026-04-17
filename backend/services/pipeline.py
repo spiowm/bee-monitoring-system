@@ -9,6 +9,7 @@ from services.tracker_factory import TrackerFactory
 from services.behavior import BehaviorAnalyzer
 from services.counter import TrafficCounter
 from services.annotator import FrameAnnotator
+from services.track_history import TrackHistory
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class VideoPipeline:
         )
         self.behavior_analyzer = BehaviorAnalyzer()
         self.annotator = FrameAnnotator(viz_config)
+        self.history = TrackHistory()
 
         # Accumulated state
         self.total_in = 0
@@ -41,20 +43,24 @@ class VideoPipeline:
         self.current_fps = 0.0
 
     def process_frame(self, frame: np.ndarray, frame_num: int, fps: float) -> np.ndarray:
-        """Process one frame. Returns annotated frame."""
         frame_start = time.time()
 
         ramp_bbox = self.ramp_detector.detect(frame)
-
         detections, filtered_boxes, filtered_kpts = self._detect(frame, ramp_bbox)
-
         tracked = self.tracker.update_with_detections(detections)
         self.active_bees = len(tracked.tracker_id) if tracked.tracker_id is not None else 0
 
-        # Behavior analysis (every 15 frames)
-        self.behavior_analyzer.update_history(frame_num, tracked, fps)
+        # Update shared history
+        if tracked.tracker_id is not None:
+            for i, track_id in enumerate(tracked.tracker_id):
+                xyxy = tracked.xyxy[i]
+                cx, cy = (xyxy[0] + xyxy[2]) / 2, (xyxy[1] + xyxy[3]) / 2
+                self.history.update(track_id, cx, cy, frame_num)
+        self.history.prune_stale(frame_num)
+
+        # Behavior analysis every 15 frames
         if frame_num % 15 == 0:
-            self.current_behaviors = self.behavior_analyzer.analyze(fps)
+            self.current_behaviors = self.behavior_analyzer.analyze(self.history, fps)
             self.behavior_counts = {k: 0 for k in self.behavior_counts}
             for b in self.current_behaviors.values():
                 if b in self.behavior_counts:
@@ -64,7 +70,7 @@ class VideoPipeline:
 
         events = self.counter.update(
             frame_num, tracked, ramp_bbox, mapped_kpts,
-            self.current_behaviors, fps,
+            self.history, self.current_behaviors, fps,
         )
         self._accumulate_events(events)
 
@@ -77,24 +83,17 @@ class VideoPipeline:
 
         return self.annotator.annotate(
             frame, tracked, ramp_bbox, mapped_kpts,
-            self.current_behaviors, self.counter, events, stats,
+            self.current_behaviors, self.counter, events, stats, self.history,
         )
 
     # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     def _detect(self, frame, ramp_bbox):
-        """Run YOLO and filter detections inside ramp area."""
         results = self.bee_model(
             frame, verbose=False,
             conf=self.config.get("conf_threshold", 0.35),
         )
-
-        filtered_boxes = []
-        filtered_confs = []
-        filtered_class_ids = []
-        filtered_kpts = []
+        filtered_boxes, filtered_confs, filtered_class_ids, filtered_kpts = [], [], [], []
 
         if results and len(results[0].boxes) > 0:
             boxes = results[0].boxes.xyxy.cpu().numpy()
@@ -122,18 +121,28 @@ class VideoPipeline:
         return detections, filtered_boxes, filtered_kpts
 
     def _match_keypoints(self, tracked, filtered_boxes, filtered_kpts):
-        """Match keypoints to tracked detections by nearest box center."""
+        def compute_iou(box1, box2):
+            x_left = max(box1[0], box2[0])
+            y_top = max(box1[1], box2[1])
+            x_right = min(box1[2], box2[2])
+            y_bottom = min(box1[3], box2[3])
+            if x_right < x_left or y_bottom < y_top:
+                return 0.0
+            intersection_area = (x_right - x_left) * (y_bottom - y_top)
+            box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+            box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+            union_area = box1_area + box2_area - intersection_area
+            return intersection_area / union_area if union_area > 0 else 0.0
+
         mapped = []
         if filtered_kpts and tracked.tracker_id is not None:
             for xyxy in tracked.xyxy:
-                tcx, tcy = (xyxy[0] + xyxy[2]) / 2, (xyxy[1] + xyxy[3]) / 2
-                best_dist = float("inf")
+                best_iou = 0.0
                 best_kpt = None
                 for j, fb in enumerate(filtered_boxes):
-                    fcx, fcy = (fb[0] + fb[2]) / 2, (fb[1] + fb[3]) / 2
-                    dist = (tcx - fcx) ** 2 + (tcy - fcy) ** 2
-                    if dist < best_dist and dist < 1000:
-                        best_dist = dist
+                    iou = compute_iou(xyxy, fb)
+                    if iou > best_iou and iou > 0.3:  # require at least 30% overlap
+                        best_iou = iou
                         best_kpt = filtered_kpts[j]
                 mapped.append(best_kpt)
         return mapped
@@ -149,10 +158,6 @@ class VideoPipeline:
                 self.pose_confirmed += 1
             if e["method"] == "trajectory_fallback":
                 self.fallback_events += 1
-
-    # ------------------------------------------------------------------
-    # Stats / results (queried by the caller)
-    # ------------------------------------------------------------------
 
     def get_live_stats(self, frame_num: int, total_frames: int) -> dict:
         return {
