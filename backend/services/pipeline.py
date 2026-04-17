@@ -27,7 +27,7 @@ class VideoPipeline:
             approach=config.get("approach", "A"),
             angle_threshold_deg=config.get("angle_threshold_deg", 60.0),
         )
-        self.behavior_analyzer = BehaviorAnalyzer()
+        self.behavior_analyzer = BehaviorAnalyzer(config)
         self.annotator = FrameAnnotator(viz_config)
         self.history = TrackHistory()
 
