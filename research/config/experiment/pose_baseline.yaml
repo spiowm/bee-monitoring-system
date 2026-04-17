@@ -1,15 +1,18 @@
 # @package _global_
 project:
   experiment_name: "Pose_Estimation_Baseline"
-  note: "Початковий тест конвеєра для Pose"
+  note: "Bee pose estimation — head + stinger keypoints, hive-based split (6 train / 2 val hives)"
 
 data:
-  source_type: "kaggle"
-  kaggle_id: "spiowm/bee-raw-dataset" # Змініть на реальний ID
-  kaggle_file: "pose.zip" # Завантажити ЛИШЕ архів з позами!
-  target_dir: "datasets"
-  dataset_path: "datasets/pose/data.yaml" # Kaggle розпакує позу сюди
+  kaggle_id: "spiowm/bee-monitoring-pose"
+  raw_dir: "datasets/raw/pose"        # for source_type=local
+  prepared_dir: "datasets/pose"
+  dataset_path: "datasets/pose/data.yaml"
+  nc: 1
+  names: ["bee"]
+  kpt_shape: [2, 2]                   # 2 keypoints (x, y) без visibility
+  val_hives: ["20230711b", "20230609e"]
 
 model:
-  name: "yolo11s-pose.pt" # Для pose
+  name: "yolo11s-pose.pt"
   task: "pose"

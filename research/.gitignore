@@ -14,5 +14,9 @@ mlruns/
 # Jupyter Notebooks
 .ipynb_checkpoints/
 
+# Hydra outputs
+outputs/
+multirun/
+
 # Системні файли
 .DS_Store
