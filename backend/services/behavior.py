@@ -1,10 +1,15 @@
 from services.track_history import TrackHistory
-import numpy as np
+from abc import ABC, abstractmethod
+from typing import Dict, Optional
 
+class BehaviorStrategy(ABC):
+    @abstractmethod
+    def analyze(self, history: TrackHistory, fps: float) -> Dict[int, Optional[str]]:
+        pass
 
-class BehaviorAnalyzer:
+class HeuristicBehaviorStrategy(BehaviorStrategy):
     """
-    Classifies per-track behavior using shared TrackHistory and configurable heuristics.
+    Classifies per-track behavior using empirical thresholds based on speed and spread.
     Results cached in TrackEntry.behavior.
     """
 
@@ -18,33 +23,25 @@ class BehaviorAnalyzer:
         self.guarding_speed_max = self.config.get("behavior_guarding_speed_max", 80.0)
         self.guarding_spread_ratio = self.config.get("behavior_guarding_spread_ratio", 1.5)
 
-    def analyze(self, history: TrackHistory, fps: float = 30.0) -> dict:
-        """
-        Returns dict: track_id → 'foraging'|'fanning'|'guarding'|'washboarding'|None.
-        Call every 15 frames.
-        """
+    def analyze(self, history: TrackHistory, fps: float = 30.0) -> Dict[int, Optional[str]]:
         behaviors = {}
 
         for track_id, entry in history.all_entries().items():
-            positions = entry.positions
-            if len(positions) < 15:
+            if len(entry.positions) < 15:
                 behaviors[track_id] = None
                 continue
 
-            pos_np = np.array(positions)
-            diffs = np.diff(pos_np, axis=0)
-            distances = np.linalg.norm(diffs, axis=1)
-            total_dist = np.sum(distances)
-            duration_sec = len(positions) / fps
-            avg_speed = total_dist / duration_sec
+            metrics = entry.compute_metrics(fps)
+            avg_speed = metrics["avg_speed"]
+            duration_sec = len(entry.positions) / fps
 
             if avg_speed > self.foraging_speed_min:
                 behavior = "foraging"
             elif avg_speed < self.fanning_speed_max and duration_sec > self.fanning_duration_min:
                 behavior = "fanning"
             elif self.guarding_speed_min <= avg_speed <= self.guarding_speed_max:
-                spread_x = np.max(pos_np[:, 0]) - np.min(pos_np[:, 0])
-                spread_y = np.max(pos_np[:, 1]) - np.min(pos_np[:, 1])
+                spread_x = metrics["spread_x"]
+                spread_y = metrics["spread_y"]
                 behavior = "guarding" if spread_x > spread_y * self.guarding_spread_ratio else "washboarding"
             else:
                 behavior = "washboarding"
@@ -53,3 +50,13 @@ class BehaviorAnalyzer:
             behaviors[track_id] = behavior
 
         return behaviors
+
+class BehaviorAnalyzer:
+    """
+    Context class that executes a chosen BehaviorStrategy.
+    """
+    def __init__(self, config: dict = None, strategy: BehaviorStrategy = None):
+        self.strategy = strategy or HeuristicBehaviorStrategy(config)
+
+    def analyze(self, history: TrackHistory, fps: float = 30.0) -> Dict[int, Optional[str]]:
+        return self.strategy.analyze(history, fps)

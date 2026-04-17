@@ -3,20 +3,22 @@ name = "backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
-    "fastapi[standard]>=0.135.1",
+    "fastapi[standard]>=0.136.0",
     "motor>=3.7.1",
-    "numpy>=2.4.3",
+    "numpy>=2.4.4",
     "opencv-python-headless>=4.13.0.92",
-    "pandas>=3.0.1",
-    "pydantic>=2.12.5",
+    "pandas>=3.0.2",
+    "pydantic>=2.13.2",
     "pydantic-settings>=2.13.1",
     "pymongo>=4.16.0",
-    "python-multipart>=0.0.22",
+    "python-multipart>=0.0.26",
     "supervision>=0.27.0.post2",
-    "ultralytics>=8.4.24",
-    "uvicorn>=0.42.0",
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "ultralytics>=8.4.38",
+    "uvicorn>=0.44.0",
 ]
 
 [[tool.uv.index]]

@@ -7,9 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-api": "openapi-ts --input ../backend/openapi.json --output ./src/api/generated --client @hey-api/client-axios"
   },
   "dependencies": {
+    "@hey-api/client-axios": "^0.9.1",
+    "@tanstack/react-query": "^5.99.0",
     "axios": "^1.13.6",
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
@@ -20,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@hey-api/openapi-ts": "^0.96.0",
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

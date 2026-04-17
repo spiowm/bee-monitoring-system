@@ -1,44 +1,60 @@
-import { useState, useEffect } from 'react';
-import { API } from '../api/client';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  getSummaryAnalyticsSummaryGet, 
+  compareApproachesAnalyticsCompareApproachesGet, 
+  listJobsJobsGet, 
+  deleteJobJobsJobIdDelete 
+} from '../api/generated';
 import { BarChart, Activity, Layers, ActivitySquare, CheckCircle, History, Trash2, Play, Download, X } from 'lucide-react';
+import type { Job } from '../types';
 
 export default function AnalyticsPage() {
-  const [summary, setSummary] = useState<any>(null);
-  const [compare, setCompare] = useState<any>(null);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const handleDelete = async (jobId: string) => {
-    if (!confirm('Are you sure you want to delete this job and its video?')) return;
-    try {
-      await API.deleteJob(jobId);
-      setJobs(prev => prev.filter(j => j.job_id !== jobId));
-    } catch (e) {
-      console.error(e);
-      alert('Failed to delete job');
+  const { data: summary, isLoading: loadingSummary } = useQuery({
+    queryKey: ['analyticsSummary'],
+    queryFn: async () => {
+      const { data } = await getSummaryAnalyticsSummaryGet();
+      return data as any;
     }
+  });
+
+  const { data: compare, isLoading: loadingCompare } = useQuery({
+    queryKey: ['analyticsCompare'],
+    queryFn: async () => {
+      const { data } = await compareApproachesAnalyticsCompareApproachesGet();
+      return data as any;
+    }
+  });
+
+  const { data: jobs = [], isLoading: loadingJobs } = useQuery({
+    queryKey: ['jobs'],
+    queryFn: async () => {
+      const { data } = await listJobsJobsGet();
+      return data as Job[];
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      await deleteJobJobsJobIdDelete({ path: { job_id: jobId } });
+      return jobId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['analyticsSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['analyticsCompare'] });
+    }
+  });
+
+  const handleDelete = (jobId: string) => {
+    if (!confirm('Are you sure you want to delete this job and its video?')) return;
+    deleteMutation.mutate(jobId);
   };
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [sum, comp, jbs] = await Promise.all([
-          API.getAnalyticsSummary(),
-          API.getApproachCompare(),
-          API.listJobs()
-        ]);
-        setSummary(sum);
-        setCompare(comp);
-        setJobs(jbs);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const loading = loadingSummary || loadingCompare || loadingJobs;
 
   if (loading) return <div className="animate-pulse text-center p-12 text-[var(--accent)]"><Activity className="mx-auto block" size={48} />Loading Analytics...</div>;
 
@@ -152,15 +168,15 @@ export default function AnalyticsPage() {
                       <td className="px-4 py-3 flex gap-3 items-center whitespace-nowrap">
                         {j.result?.annotated_video_url && (
                           <>
-                            <button onClick={() => setPlayingVideo(`http://localhost:8000${j.result?.annotated_video_url}`)} className="text-blue-400 hover:text-blue-300 transition-colors" title="Play">
+                            <button onClick={() => setPlayingVideo(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${j.result?.annotated_video_url}`)} className="text-blue-400 hover:text-blue-300 transition-colors" title="Play">
                               <Play size={16} />
                             </button>
-                            <a href={`http://localhost:8000${j.result?.annotated_video_url}`} download className="text-green-400 hover:text-green-300 transition-colors" title="Download">
+                            <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${j.result?.annotated_video_url}`} download className="text-green-400 hover:text-green-300 transition-colors" title="Download">
                               <Download size={16} />
                             </a>
                           </>
                         )}
-                        <button onClick={() => handleDelete(j.job_id)} className="text-red-400 hover:text-red-300 transition-colors" title="Delete">
+                        <button onClick={() => handleDelete(j.job_id)} disabled={deleteMutation.isPending} className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50" title="Delete">
                            <Trash2 size={16} />
                         </button>
                       </td>

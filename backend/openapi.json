@@ -1,0 +1,510 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Bee Monitor API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/jobs": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List Jobs",
+        "operationId": "list_jobs_jobs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Create Job",
+        "operationId": "create_job_jobs_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_job_jobs_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get Job",
+        "operationId": "get_job_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Delete Job",
+        "operationId": "delete_job_jobs__job_id__delete",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/test": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Create Test Job",
+        "operationId": "create_test_job_jobs_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/test/videos": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List Test Videos",
+        "operationId": "list_test_videos_jobs_test_videos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}/live": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get Job Live Stats",
+        "operationId": "get_job_live_stats_jobs__job_id__live_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/summary": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Get Summary",
+        "operationId": "get_summary_analytics_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/compare-approaches": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Compare Approaches",
+        "operationId": "compare_approaches_analytics_compare_approaches_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_create_job_jobs_post": {
+        "properties": {
+          "video": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Video"
+          },
+          "config": {
+            "type": "string",
+            "title": "Config"
+          },
+          "viz_config": {
+            "type": "string",
+            "title": "Viz Config"
+          }
+        },
+        "type": "object",
+        "required": [
+          "video",
+          "config",
+          "viz_config"
+        ],
+        "title": "Body_create_job_jobs_post"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "JobCreateResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "JobCreateResponse"
+      },
+      "ProcessConfig": {
+        "properties": {
+          "tracker_name": {
+            "type": "string",
+            "title": "Tracker Name",
+            "default": "bytetrack"
+          },
+          "approach": {
+            "type": "string",
+            "title": "Approach",
+            "default": "A"
+          },
+          "line_position": {
+            "type": "number",
+            "title": "Line Position",
+            "default": 0.5
+          },
+          "conf_threshold": {
+            "type": "number",
+            "title": "Conf Threshold",
+            "default": 0.35
+          },
+          "kp_conf_threshold": {
+            "type": "number",
+            "title": "Kp Conf Threshold",
+            "default": 0.5
+          },
+          "track_tail_length": {
+            "type": "integer",
+            "title": "Track Tail Length",
+            "default": 30
+          },
+          "angle_threshold_deg": {
+            "type": "number",
+            "title": "Angle Threshold Deg",
+            "default": 60.0
+          },
+          "ramp_detect_interval": {
+            "type": "integer",
+            "title": "Ramp Detect Interval",
+            "default": 30
+          }
+        },
+        "type": "object",
+        "title": "ProcessConfig"
+      },
+      "TestJobRequest": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "config": {
+            "$ref": "#/components/schemas/ProcessConfig"
+          },
+          "viz_config": {
+            "$ref": "#/components/schemas/VizConfig"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "config",
+          "viz_config"
+        ],
+        "title": "TestJobRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VizConfig": {
+        "properties": {
+          "show_boxes": {
+            "type": "boolean",
+            "title": "Show Boxes",
+            "default": true
+          },
+          "show_ids": {
+            "type": "boolean",
+            "title": "Show Ids",
+            "default": true
+          },
+          "show_confidence": {
+            "type": "boolean",
+            "title": "Show Confidence",
+            "default": true
+          },
+          "show_keypoints": {
+            "type": "boolean",
+            "title": "Show Keypoints",
+            "default": true
+          },
+          "show_ramp": {
+            "type": "boolean",
+            "title": "Show Ramp",
+            "default": true
+          },
+          "show_behaviors": {
+            "type": "boolean",
+            "title": "Show Behaviors",
+            "default": true
+          },
+          "show_counting_line": {
+            "type": "boolean",
+            "title": "Show Counting Line",
+            "default": true
+          },
+          "show_stats_overlay": {
+            "type": "boolean",
+            "title": "Show Stats Overlay",
+            "default": true
+          },
+          "show_tracks": {
+            "type": "boolean",
+            "title": "Show Tracks",
+            "default": true
+          },
+          "show_orientation": {
+            "type": "boolean",
+            "title": "Show Orientation",
+            "default": true
+          },
+          "show_recent_events": {
+            "type": "boolean",
+            "title": "Show Recent Events",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "VizConfig"
+      }
+    }
+  }
+}

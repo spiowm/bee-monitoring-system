@@ -1,73 +1,55 @@
-# React + TypeScript + Vite
+# Frontend — Веб-інтерфейс (React + TypeScript + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Цей модуль є обличчям системи. Він надає зручний дашборд для завантаження відео з вуликів, моніторингу процесу обробки в реальному часі та візуалізації результатів (аналітики трафіку).
 
-Currently, two official plugins are available:
+## ✨ Ключові можливості
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Upload Dashboard:** Завантаження нових відео або вибір з тестових для процесингу.
+- **Налаштування параметрів:** UI для налаштування гіперпараметрів трекінгу (конфіденс, пороги, вибір трекеру) та візуалізації.
+- **Live Stats (Polling):** Живе відображення статистики процесингу (поточний кадр, активні бджоли, підрахунок) під час фонової роботи бекенду.
+- **Analytics & Research:** Порівняння метрик методів підрахунку (Approach A vs Approach B), таблиця загального трафіку та історичних сесій.
+- **Відеопрогравач:** Перегляд вже повністю обробленого (анотованого) відео прямо в браузері.
 
-## React Compiler
+## 🚀 Запуск та налаштування
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Вимоги
+- Node.js (рекомендовано v20+)
+- npm
 
-## Expanding the ESLint configuration
+### 1. Налаштування оточення (.env)
+Створіть файл `.env` в корені `frontend/`:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```env
+VITE_API_URL=http://localhost:8000
+```
+*(Це налаштування дозволить фронтенду знати, де знаходиться FastAPI бекенд).*
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 2. Встановлення і запуск
+Встановлення Node.js залежностей:
+```bash
+cd frontend
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Запуск development сервера:
+```bash
+npm run dev
 ```
+Відкрийте браузер за адресою: `http://localhost:5173`
+
+### 3. Генерація API Клієнта (OpenAPI)
+Для цього проєкту додано генерацію TypeScript типів з OpenAPI схеми бекенда (FastAPI). Це унеможливлює помилки типів під час використання API.
+Щоб згенерувати або оновити клієнт, коли бекенд працює:
+
+```bash
+npm run generate-api
+```
+
+## 🛠 Технологічний стек
+- React 19
+- TypeScript
+- Vite
+- TailwindCSS
+- React Query (TanStack Query) для управління даними
+- Lucide React (для іконок)
+- @hey-api/openapi-ts (генерація API клієнта)
