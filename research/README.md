@@ -136,51 +136,55 @@ uv run src/run_experiment.py experiment=ramp_detection data.val_ratio=0.15
 
 ## Запуск
 
-### Локальний тест (1 epoch, без реального датасету)
+Pipeline складається з трьох незалежних кроків. Кожен крок — окрема команда.
+
+### Крок 1 — завантаження
 
 ```bash
-# pose (завантажує ~200 MB якщо ще нема)
-uv run src/run_experiment.py training.epochs=1
-
-# ramp (~51 MB)
-uv run src/run_experiment.py experiment=ramp_detection training.epochs=1
-
-# Якщо дані вже є в datasets/raw/ — можна з source_type=local (не завантажує з Kaggle)
-uv run src/run_experiment.py data.source_type=local training.epochs=1 training.workers=0 training.imgsz=64 training.batch=2
+uv run src/download.py pose    # → datasets/raw/pose/  (~200 MB)
+uv run src/download.py ramp    # → datasets/raw/ramp/  (~51 MB)
+uv run src/download.py         # обидва
 ```
 
-### Повне навчання
+Повторний виклик пропускає якщо дані вже є.
+
+### Крок 2 — split + data.yaml
 
 ```bash
-uv run src/run_experiment.py training.epochs=50
+uv run src/prepare.py experiment=pose_baseline    # hive-based split
+uv run src/prepare.py experiment=ramp_detection   # random split
+
+# Змінити split без перезавантаження:
+uv run src/prepare.py experiment=pose_baseline "data.val_hives=[20230711b,20230609c]"
+uv run src/prepare.py experiment=ramp_detection data.val_ratio=0.15
+```
+
+Перезапуск завжди перезаписує `data.yaml` і папки split.
+
+### Крок 3 — навчання
+
+```bash
+uv run src/run_experiment.py experiment=pose_baseline training.epochs=50
 uv run src/run_experiment.py experiment=ramp_detection training.epochs=100
 ```
 
-### Перевизначення гіперпараметрів (Hydra CLI)
+Якщо `data.yaml` відсутній — падає з підказкою запустити `prepare.py`.
+
+### Додаткові режими навчання
 
 ```bash
-uv run src/run_experiment.py training.imgsz=1280 training.batch=8 project.note="test lr"
-```
+# Перевизначення гіперпараметрів
+uv run src/run_experiment.py training.imgsz=1280 training.batch=8
 
-### Grid sweep (Hydra multirun)
-
-```bash
-# Запускає 4 комбінації: 2 lr × 2 imgsz
+# Grid sweep (Hydra multirun) — 4 комбінації: 2 lr × 2 imgsz
 uv run src/run_experiment.py --multirun \
   training.lr0=0.001,0.0005 \
   training.imgsz=1280,1920
-```
 
-Кожна комбінація — окремий MLflow run. Результати у `multirun/`.
-
-### HPO — Optuna
-
-```bash
+# HPO — Optuna
 uv run src/run_experiment.py mode=hpo hpo.n_trials=20
 uv run src/run_experiment.py experiment=ramp_detection mode=hpo hpo.n_trials=10
 ```
-
-Простір пошуку задається в `config/config.yaml` у секції `hpo.search_space`. Кожен trial — вкладений MLflow run. Найкращі параметри логуються в батьківський run.
 
 ---
 

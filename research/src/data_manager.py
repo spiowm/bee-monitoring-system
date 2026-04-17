@@ -12,7 +12,6 @@ def _kaggle_token() -> str:
 
 
 def _find_data_root(base: Path) -> Path:
-    """Return the directory that directly contains images/ (handles optional wrapper folder)."""
     if (base / "images").exists():
         return base
     for sub in sorted(base.iterdir()):
@@ -22,12 +21,6 @@ def _find_data_root(base: Path) -> Path:
 
 
 def download_dataset(kaggle_id: str, raw_dir: str | None = None) -> Path:
-    """Download dataset via kagglehub and return path to data root (images/ + labels/).
-
-    If raw_dir is given:
-      - returns raw_dir immediately if it already contains data (skip re-download)
-      - otherwise downloads and copies data into raw_dir for local persistence
-    """
     if raw_dir:
         local = Path(raw_dir)
         if local.exists() and any(local.iterdir()):
@@ -110,50 +103,3 @@ def prepare_dataset(raw_dir: Path | str, prepared_dir: str, data_config: dict) -
     with open(yaml_path, "w", encoding="utf-8") as f:
         yaml.dump(yaml_content, f, default_flow_style=False, allow_unicode=True)
     print(f"INFO: data.yaml → {yaml_path}")
-
-
-def ensure_dataset(config_dict: dict) -> None:
-    data = config_dict.get("data", {})
-    dataset_yaml = data.get("dataset_path", "")
-
-    if dataset_yaml and os.path.exists(dataset_yaml):
-        print(f"INFO: Датасет вже готовий: {dataset_yaml}")
-        return
-
-    source_type = data.get("source_type", "kaggle")
-    if source_type == "kaggle":
-        kaggle_id = data.get("kaggle_id", "")
-        if not kaggle_id:
-            raise ValueError("data.kaggle_id не задано")
-        raw_path = download_dataset(kaggle_id, data.get("raw_dir") or None)
-    else:
-        raw_path = Path(data.get("raw_dir", ""))
-        if not raw_path or not raw_path.exists():
-            raise FileNotFoundError(f"raw_dir не знайдено: {raw_path}")
-
-    prepare_dataset(raw_path, data.get("prepared_dir", "datasets/prepared"), data)
-
-    if dataset_yaml and not os.path.exists(dataset_yaml):
-        print(f"WARNING: data.yaml не знайдено після підготовки: {dataset_yaml}")
-
-
-# Відомі датасети для CLI-завантаження
-_DATASETS = {
-    "pose": ("spiowm/bee-monitoring-pose", "datasets/raw/pose"),
-    "ramp": ("spiowm/bee-monitoring-ramp-detection", "datasets/raw/ramp"),
-}
-
-
-if __name__ == "__main__":
-    import sys
-    from dotenv import load_dotenv
-
-    load_dotenv(Path(__file__).parent.parent / ".env")
-
-    keys = sys.argv[1:] or list(_DATASETS.keys())
-    for key in keys:
-        if key not in _DATASETS:
-            print(f"ERROR: невідомий датасет '{key}'. Доступні: {list(_DATASETS.keys())}")
-            sys.exit(1)
-        kaggle_id, raw_dir = _DATASETS[key]
-        download_dataset(kaggle_id, raw_dir)

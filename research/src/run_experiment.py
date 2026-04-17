@@ -5,7 +5,6 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from dotenv import load_dotenv
 from ultralytics import YOLO
-from data_manager import ensure_dataset
 
 
 # ---------------------------------------------------------------------------
@@ -158,14 +157,17 @@ def main(cfg: DictConfig):
     original_cwd = hydra.utils.get_original_cwd()
     dagshub_user, dagshub_repo = _setup_env(original_cwd)
 
-    # Абсолютні шляхи для data_manager
     config_dict = OmegaConf.to_container(cfg, resolve=True)
-    for key in ("raw_dir", "prepared_dir", "dataset_path"):
+    for key in ("prepared_dir", "dataset_path"):
         if config_dict["data"].get(key):
             config_dict["data"][key] = os.path.join(original_cwd, config_dict["data"][key])
 
-    ensure_dataset(config_dict)
     dataset_path = config_dict["data"]["dataset_path"]
+    if not os.path.exists(dataset_path):
+        raise FileNotFoundError(
+            f"data.yaml не знайдено: {dataset_path}\n"
+            f"Спочатку: uv run src/prepare.py experiment=<назва>"
+        )
 
     _init_dagshub(dagshub_user, dagshub_repo)
 
