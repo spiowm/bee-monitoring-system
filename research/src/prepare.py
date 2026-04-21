@@ -17,22 +17,24 @@ def _prepare(raw_dir: str, prepared_dir: str, data_config: dict) -> None:
     if not images_dir.exists():
         raise FileNotFoundError(f"Не знайдено: {images_dir}")
 
-    exts = {".jpg", ".jpeg", ".png", ".bmp"}
-    all_images = sorted(f for f in images_dir.iterdir() if f.suffix.lower() in exts)
+    all_images = sorted(images_dir.glob("*.jpg"))
     if not all_images:
         raise ValueError(f"Зображень не знайдено в {images_dir}")
 
-    val_hives = list(data_config.get("val_hives") or [])
-    val_ratio = float(data_config.get("val_ratio", 0.2))
+    split_strategy = data_config.get("split_strategy", "random")
 
-    if val_hives:
+    if split_strategy == "hive":
+        val_hives = data_config.get("val_hives", [])
+        if not val_hives:
+            raise ValueError("split_strategy=hive але val_hives порожній")
         val_set = set(val_hives)
         train_images = [f for f in all_images if f.stem[:9] not in val_set]
         val_images = [f for f in all_images if f.stem[:9] in val_set]
-        print(f"INFO: Hive-based split → train: {len(train_images)}, val: {len(val_images)}")
         if not val_images:
-            print("WARNING: Жодного зображення для вказаних val_hives.")
+            raise ValueError(f"Жодного зображення для val_hives={val_hives}")
+        print(f"INFO: Hive split ({val_hives}) → train: {len(train_images)}, val: {len(val_images)}")
     else:
+        val_ratio = float(data_config.get("val_ratio", 0.2))
         rng = random.Random(42)
         shuffled = list(all_images)
         rng.shuffle(shuffled)
@@ -61,6 +63,8 @@ def _prepare(raw_dir: str, prepared_dir: str, data_config: dict) -> None:
     kpt_shape = data_config.get("kpt_shape")
     if kpt_shape:
         yaml_content["kpt_shape"] = list(kpt_shape)
+        n_kpts = kpt_shape[0]
+        yaml_content["flip_idx"] = list(range(n_kpts))
 
     yaml_path = prepared / "data.yaml"
     with open(yaml_path, "w", encoding="utf-8") as f:

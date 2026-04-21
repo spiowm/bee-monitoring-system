@@ -1,18 +1,25 @@
 # @package _global_
 project:
-  experiment_name: "Pose_Estimation_Baseline"
+  experiment_name: "Bee_Pose_Estimation"
   note: "Bee pose estimation — head + stinger keypoints, hive-based split (6 train / 2 val hives)"
 
 data:
   kaggle_id: "spiowm/bee-monitoring-pose"
-  raw_dir: "datasets/raw/pose"        # for source_type=local
+  raw_dir: "datasets/raw/pose"
   prepared_dir: "datasets/pose"
   dataset_path: "datasets/pose/data.yaml"
   nc: 1
   names: ["bee"]
   kpt_shape: [2, 2]                   # 2 keypoints (x, y) без visibility
+  split_strategy: "hive"
   val_hives: ["20230711b", "20230609e"]
+
+training:
+  mosaic: 0.48
+  degrees: 7.6
+  fliplr: 0.36
+  translate: 0.07
+  scale: 0.42
 
 model:
   name: "yolo11s-pose.pt"
-  task: "pose"

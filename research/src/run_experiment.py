@@ -1,4 +1,6 @@
 import os
+from datetime import datetime
+from pathlib import Path
 import dagshub
 import mlflow
 import hydra
@@ -7,12 +9,7 @@ from dotenv import load_dotenv
 from ultralytics import YOLO
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def _setup_env(original_cwd: str) -> tuple:
-    """Завантажує .env і повертає DagsHub credentials."""
     env_path = os.path.join(original_cwd, ".env")
     load_dotenv(env_path if os.path.exists(env_path) else None)
 
@@ -36,124 +33,8 @@ def _init_dagshub(dagshub_user: str, dagshub_repo: str) -> None:
         dagshub.init(mlflow=True)
 
 
-def _train_model(
-    cfg: DictConfig,
-    dataset_path: str,
-    original_cwd: str,
-    run_name: str = None,
-) -> tuple:
-    """Навчає YOLO-модель і повертає (model, save_dir)."""
-    model = YOLO(cfg.model.name)
-    model.train(
-        data=dataset_path,
-        epochs=cfg.training.epochs,
-        batch=cfg.training.batch,
-        imgsz=cfg.training.imgsz,
-        seed=cfg.training.seed,
-        device=cfg.training.device if cfg.training.device else None,
-        optimizer=cfg.training.optimizer,
-        lr0=cfg.training.lr0,
-        patience=cfg.training.patience,
-        workers=cfg.training.workers,
-        save_period=cfg.training.save_period,
-        project=os.path.join(original_cwd, cfg.training.project),
-        name=run_name or cfg.training.name,
-    )
-    return model, str(model.trainer.save_dir)
-
-
-# ---------------------------------------------------------------------------
-# Single run
-# ---------------------------------------------------------------------------
-
-def _run_single(cfg: DictConfig, config_dict: dict, dataset_path: str, original_cwd: str) -> None:
-    """Один тренувальний запуск з логуванням в MLflow."""
-    mlflow.set_experiment(cfg.project.experiment_name)
-
-    with mlflow.start_run() as run:
-        print(f"INFO: MLflow Run ID: {run.info.run_id}")
-        mlflow.set_tag("note", cfg.project.note)
-        mlflow.log_dict(config_dict, "hydra_config.yaml")
-
-        model, save_dir = _train_model(cfg, dataset_path, original_cwd)
-
-        mlflow.log_artifacts(save_dir, artifact_path="yolo_run")
-        print(f"INFO: Артефакти збережено з {save_dir}")
-
-
-# ---------------------------------------------------------------------------
-# HPO (Optuna)
-# ---------------------------------------------------------------------------
-
-def _run_trial(trial, cfg: DictConfig, dataset_path: str, original_cwd: str) -> float:
-    """Один Optuna trial як вкладений MLflow run."""
-    search = cfg.hpo.search_space
-
-    lr0   = trial.suggest_float("lr0",  search.lr0[0],  search.lr0[1],  log=True)
-    batch = trial.suggest_categorical("batch", list(search.batch))
-    imgsz = trial.suggest_categorical("imgsz", list(search.imgsz))
-
-    with mlflow.start_run(nested=True, run_name=f"trial_{trial.number}"):
-        mlflow.log_params({"lr0": lr0, "batch": batch, "imgsz": imgsz, "trial": trial.number})
-
-        # Тимчасово перевизначаємо параметри для цього trial
-        trial_cfg = OmegaConf.merge(cfg, OmegaConf.create({"training": {"lr0": lr0, "batch": batch, "imgsz": imgsz}}))
-        model, save_dir = _train_model(trial_cfg, dataset_path, original_cwd, run_name=f"hpo_trial_{trial.number}")
-
-        metric_key = cfg.hpo.metric
-        metric_val = float(model.trainer.metrics.get(metric_key, 0.0))
-        mlflow.log_metric(metric_key.replace("/", "_"), metric_val)
-        mlflow.log_artifacts(save_dir, artifact_path=f"trial_{trial.number}")
-
-    return metric_val
-
-
-def _run_hpo(cfg: DictConfig, config_dict: dict, dataset_path: str, original_cwd: str) -> None:
-    """Запускає Optuna HPO, кожен trial — окремий MLflow run."""
-    import optuna
-    optuna.logging.set_verbosity(optuna.logging.WARNING)
-
-    mlflow.set_experiment(cfg.project.experiment_name + "_HPO")
-
-    with mlflow.start_run(run_name="hpo_study") as run:
-        print(f"INFO: HPO MLflow Run ID: {run.info.run_id}")
-        print(f"INFO: Кількість trials: {cfg.hpo.n_trials} | Метрика: {cfg.hpo.metric}")
-        mlflow.log_dict(config_dict, "hydra_config.yaml")
-        mlflow.log_param("n_trials", cfg.hpo.n_trials)
-
-        study = optuna.create_study(
-            direction=cfg.hpo.direction,
-            study_name=cfg.project.experiment_name,
-        )
-        study.optimize(
-            lambda trial: _run_trial(trial, cfg, dataset_path, original_cwd),
-            n_trials=cfg.hpo.n_trials,
-        )
-
-        best = study.best_params
-        mlflow.log_params({"best_" + k: v for k, v in best.items()})
-        mlflow.log_metric("best_" + cfg.hpo.metric.replace("/", "_"), study.best_value)
-
-        print(f"INFO: Найкращі параметри: {best}")
-        print(f"INFO: Найкраще значення ({cfg.hpo.metric}): {study.best_value:.4f}")
-
-
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
-
 @hydra.main(version_base=None, config_path="../config", config_name="config")
 def main(cfg: DictConfig):
-    """
-    Головний пайплайн навчання.
-
-    Режими:
-      single (default) — один запуск за конфігом
-      hpo              — Optuna HPO (mode=hpo hpo.n_trials=N)
-
-    Hydra multirun (grid sweep) — без зміни коду:
-      uv run src/run_experiment.py --multirun training.lr0=0.001,0.0005 training.imgsz=1280,1920
-    """
     original_cwd = hydra.utils.get_original_cwd()
     dagshub_user, dagshub_repo = _setup_env(original_cwd)
 
@@ -171,13 +52,101 @@ def main(cfg: DictConfig):
 
     _init_dagshub(dagshub_user, dagshub_repo)
 
-    mode = str(cfg.get("mode", "single"))
-    print(f"INFO: Режим={mode} | Модель={cfg.model.name} | Epochs={cfg.training.epochs} | imgsz={cfg.training.imgsz}")
+    print(f"INFO: Модель={cfg.model.name} | Epochs={cfg.training.epochs} | imgsz={cfg.training.imgsz}")
 
-    if mode == "hpo":
-        _run_hpo(cfg, config_dict, dataset_path, original_cwd)
-    else:
-        _run_single(cfg, config_dict, dataset_path, original_cwd)
+    run_name = f"{cfg.project.experiment_name}_{datetime.now().strftime('%m%d_%H%M')}"
+    mlflow.set_experiment(cfg.project.experiment_name)
+    with mlflow.start_run(run_name=run_name) as run:
+        print(f"INFO: MLflow Run ID: {run.info.run_id}")
+        mlflow.set_tag("note", cfg.project.note)
+        mlflow.log_dict(config_dict, "hydra_config.yaml")
+
+        # --- Параметри моделі ---
+        mlflow.log_param("model", cfg.model.name)
+
+        # --- Гіперпараметри навчання ---
+        mlflow.log_params({
+            "epochs":    cfg.training.epochs,
+            "batch":     cfg.training.batch,
+            "imgsz":     cfg.training.imgsz,
+            "lr0":       cfg.training.lr0,
+            "optimizer": cfg.training.optimizer,
+            "patience":  cfg.training.patience,
+            "seed":      cfg.training.seed,
+            "mosaic":    cfg.training.mosaic,
+            "degrees":   cfg.training.degrees,
+            "fliplr":    cfg.training.fliplr,
+            "translate": cfg.training.translate,
+            "scale":     cfg.training.scale,
+        })
+
+        # --- Дані ---
+        split_strategy = cfg.data.split_strategy
+        mlflow.log_params({
+            "nc":            cfg.data.nc,
+            "classes":       ",".join(cfg.data.names),
+            "split_strategy": split_strategy,
+        })
+        if split_strategy == "hive":
+            mlflow.log_param("val_hives", ",".join(cfg.data.val_hives))
+        else:
+            mlflow.log_param("val_ratio", cfg.data.val_ratio)
+
+        prepared_dir = Path(original_cwd) / cfg.data.prepared_dir
+        train_count = len(list((prepared_dir / "train" / "images").glob("*.jpg")))
+        val_count = len(list((prepared_dir / "val" / "images").glob("*.jpg")))
+        mlflow.log_params({
+            "train_images": train_count,
+            "val_images":   val_count,
+            "total_images": train_count + val_count,
+        })
+
+        model = YOLO(cfg.model.name)
+        model.train(
+            data=dataset_path,
+            epochs=cfg.training.epochs,
+            batch=cfg.training.batch,
+            imgsz=cfg.training.imgsz,
+            seed=cfg.training.seed,
+            device=cfg.training.device if cfg.training.device else None,
+            optimizer=cfg.training.optimizer,
+            lr0=cfg.training.lr0,
+            patience=cfg.training.patience,
+            workers=cfg.training.workers,
+            save_period=cfg.training.save_period,
+            mosaic=cfg.training.mosaic,
+            degrees=cfg.training.degrees,
+            fliplr=cfg.training.fliplr,
+            translate=cfg.training.translate,
+            scale=cfg.training.scale,
+            project=os.path.join(original_cwd, cfg.training.project),
+            name=cfg.training.name,
+        )
+        # --- Метрики останньої епохи (train losses + val) ---
+        for k, v in model.trainer.metrics.items():
+            clean = k.replace("/", "_").replace("(", "_").replace(")", "")
+            mlflow.log_metric(f"last_{clean}", float(v))
+
+        # --- Метрики best.pt ---
+        best_results = model.val(
+            data=dataset_path,
+            project=os.path.join(original_cwd, cfg.training.project),
+            name="val_best",
+        )
+        for k, v in best_results.results_dict.items():
+            clean = k.replace("/", "_").replace("(", "_").replace(")", "")
+            mlflow.log_metric(f"best_{clean}", float(v))
+
+        save_path = Path(model.trainer.save_dir)
+        for pattern, dest in [
+            ("weights/best.pt", "yolo_run/weights"),
+            ("weights/last.pt", "yolo_run/weights"),
+            ("results.csv",     "yolo_run"),
+            ("*.png",           "yolo_run"),
+        ]:
+            for f in save_path.glob(pattern):
+                mlflow.log_artifact(str(f), artifact_path=dest)
+        print(f"INFO: Артефакти збережено з {save_path}")
 
     print("INFO: Завершено. Всі артефакти збережено в DagsHub/MLflow.")
 

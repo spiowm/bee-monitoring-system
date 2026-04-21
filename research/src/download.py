@@ -1,20 +1,13 @@
-import os
 import sys
 import shutil
 from pathlib import Path
 from dotenv import load_dotenv
+import kagglehub
 
 _DATASETS = {
     "pose": ("spiowm/bee-monitoring-pose", "datasets/raw/pose"),
     "ramp": ("spiowm/bee-monitoring-ramp-detection", "datasets/raw/ramp"),
 }
-
-
-def _kaggle_token() -> None:
-    key = os.getenv("KAGGLE_KEY", "")
-    if key.upper().startswith("KGAT") and not os.getenv("KAGGLE_API_TOKEN"):
-        os.environ["KAGGLE_API_TOKEN"] = key
-
 
 def _find_data_root(base: Path) -> Path:
     if (base / "images").exists():
@@ -31,8 +24,7 @@ def download(kaggle_id: str, raw_dir: str) -> None:
         print(f"INFO: Дані вже є → {local}")
         return
 
-    import kagglehub
-    _kaggle_token()
+    
     print(f"INFO: Завантаження '{kaggle_id}'...")
     root = _find_data_root(Path(kagglehub.dataset_download(kaggle_id)))
     local.mkdir(parents=True, exist_ok=True)

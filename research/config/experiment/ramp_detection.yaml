@@ -1,18 +1,21 @@
 # @package _global_
 project:
   experiment_name: "Ramp_Detection"
-  note: "YOLO pose — 4 кутові keypoints рампи (льоток), random split 80/20"
+  note: "YOLO pose — 4 кутові keypoints рампи (льоток)"
 
 data:
   kaggle_id: "spiowm/bee-monitoring-ramp-detection"
-  raw_dir: "datasets/raw/ramp"        # for source_type=local
+  raw_dir: "datasets/raw/ramp"
   prepared_dir: "datasets/ramp"
   dataset_path: "datasets/ramp/data.yaml"
   nc: 1
   names: ["ramp"]
   kpt_shape: [4, 3]                   # 4 keypoints (x, y, visibility)
-  val_hives: []                       # random split (val_ratio=0.2 з config.yaml)
+  split_strategy: "random"
+  val_ratio: 0.2
+
+training:
+  fliplr: 0.0  # вимкнено — flip_idx для 4 кутів потребує верифікації
 
 model:
   name: "yolo11s-pose.pt"
-  task: "pose"

@@ -1,6 +1,6 @@
 defaults:
-  - experiment: pose_baseline  # замінити на: ramp_detection
   - _self_
+  - experiment: bee_pose  # або: ramp_detection
 
 # --- DagsHub / MLflow ---
 project:
@@ -9,40 +9,30 @@ project:
   experiment_name: "YOLO_Default"
   note: ""
 
-# --- Режим запуску ---
-# single  — один запуск (default)
-# hpo     — Optuna HPO (mode=hpo hpo.n_trials=N)
-# Hydra multirun grid: uv run src/run_experiment.py --multirun training.lr0=0.001,0.0005
-mode: "single"
-
 # --- Гіперпараметри навчання ---
 # epochs: 1  — дефолт для локального тесту; для повного навчання: training.epochs=50
 training:
   epochs: 1
   batch: 4
-  imgsz: 1920
+  imgsz: 320
   seed: 42
   device: ""          # "" = auto (GPU якщо є, інакше CPU)
   optimizer: "AdamW"
   lr0: 0.001
   patience: 20
   workers: 4
-  save_period: 10
+  save_period: -1
   project: "runs"
   name: "train_run"
+  # --- Аугментації (дефолти YOLO) ---
+  mosaic: 1.0
+  degrees: 0.0
+  fliplr: 0.5
+  translate: 0.1
+  scale: 0.5
 
-# --- Дані (глобальні defaults, перевизначаються в experiment/*.yaml) ---
+# --- Дані (дефолти для split; решта задається в experiment/*.yaml) ---
 data:
-  source_type: "kaggle"  # kaggle | local (local — пропускає завантаження, дані вже є)
-  val_ratio: 0.2          # частка val при random split
-  val_hives: []           # hive-based split якщо задано (напр. ["20230711b", "20230609e"])
-
-# --- HPO (Optuna) — активується при mode=hpo ---
-hpo:
-  n_trials: 10
-  direction: "maximize"
-  metric: "metrics/mAP50(P)"
-  search_space:
-    lr0:  [0.0001, 0.01]    # [low, high] для log-uniform
-    batch: [4, 8]           # categorical choices
-    imgsz: [1280, 1920]     # categorical choices
+  split_strategy: "random"  # random | hive
+  val_ratio: 0.2
+  val_hives: []
