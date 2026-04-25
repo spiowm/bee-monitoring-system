@@ -1,7 +1,7 @@
 # @package _global_
 project:
   experiment_name: "Bee_Pose_Estimation"
-  note: "Bee pose estimation — head + stinger keypoints, hive-based split (6 train / 2 val hives)"
+  note: "Bee pose estimation — head + stinger keypoints"
 
 data:
   kaggle_id: "spiowm/bee-monitoring-pose"
@@ -11,8 +11,9 @@ data:
   nc: 1
   names: ["bee"]
   kpt_shape: [2, 2]                   # 2 keypoints (x, y) без visibility
-  split_strategy: "hive"
+  split_strategy: "hive" #or "random"
   val_hives: ["20230711b", "20230609e"]
+  val_ratio: 0.25
 
 training:
   mosaic: 0.48
