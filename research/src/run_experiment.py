@@ -55,9 +55,10 @@ def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
 
     nme_vals, angle_errors = [], []
 
-    # Process one image at a time on CPU to prevent both CUDA VRAM and System RAM OOM
+    # Process one image at a time to prevent System RAM accumulation.
+    # GPU is safe to use here because we process individually and VRAM was cleared.
     for img_path in img_paths:
-        res = model.predict(str(img_path), imgsz=imgsz, verbose=False, device="cpu")[0]
+        res = model.predict(str(img_path), imgsz=imgsz, verbose=False)[0]
         
         lbl_path = val_lbl_dir / img_path.with_suffix(".txt").name
         if not lbl_path.exists():
@@ -270,15 +271,21 @@ def main(cfg: DictConfig):
         for mk, mv in speed_metrics.items():
             client.log_metric(run_id, mk, mv)
 
-        # --- Зберігаємо шлях ---
+        # --- Зберігаємо шлях та звільняємо GPU від тренера ---
         save_path = Path(model.trainer.save_dir)
         best_pt = save_path / "weights" / "best.pt"
+        del model.trainer
+        del model
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
 
         # --- Кутова точність (лише для bee_pose: 2 кточки без visibility) ---
         kpt_shape = list(cfg.data.get("kpt_shape", []))
         if kpt_shape == [2, 2]:
-            print("INFO: Обчислення pose-метрик на val-сеті (на CPU для уникнення OOM)...")
-            pose = _compute_pose_metrics(model, prepared_dir, imgsz=cfg.training.imgsz)
+            print("INFO: Обчислення pose-метрик на val-сеті...")
+            pose_model = YOLO(str(best_pt))
+            pose = _compute_pose_metrics(pose_model, prepared_dir, imgsz=cfg.training.imgsz)
             if pose:
                 for mk, mv in pose.items():
                     client.log_metric(run_id, mk, mv)
