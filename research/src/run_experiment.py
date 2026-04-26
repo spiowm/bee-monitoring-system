@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import dagshub
 import mlflow
+from mlflow import MlflowClient
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from dotenv import load_dotenv
@@ -199,6 +200,13 @@ def main(cfg: DictConfig):
             "total_images": train_count + val_count,
         })
 
+        # Вимикаємо вбудований MLflow-callback YOLO, щоб він не зламав наш run
+        from ultralytics import settings as yolo_settings
+        yolo_settings.update({"mlflow": False})
+        os.environ["MLFLOW_KEEP_RUN_ACTIVE"] = "true"
+
+        run_id = run.info.run_id
+
         model = YOLO(cfg.model.name)
         model.train(
             data=dataset_path,
@@ -220,10 +228,18 @@ def main(cfg: DictConfig):
             project=os.path.join(original_cwd, cfg.training.project),
             name=cfg.training.name,
         )
+
+        # Після model.train() YOLO міг закрити/зламати активний run.
+        # Відновлюємо контекст, щоб усі подальші log_metric працювали.
+        client = MlflowClient()
+        run_status = client.get_run(run_id).info.status
+        if run_status == "FINISHED":
+            client.set_terminated(run_id, status="RUNNING")
+
         # --- Метрики останньої епохи (train losses + val) ---
         for k, v in model.trainer.metrics.items():
             clean = k.replace("/", "_").replace("(", "_").replace(")", "")
-            mlflow.log_metric(f"last_{clean}", float(v))
+            client.log_metric(run_id, f"last_{clean}", float(v))
 
         # --- Метрики best.pt ---
         best_results = model.val(
@@ -233,20 +249,22 @@ def main(cfg: DictConfig):
         )
         for k, v in best_results.results_dict.items():
             clean = k.replace("/", "_").replace("(", "_").replace(")", "")
-            mlflow.log_metric(f"best_{clean}", float(v))
+            client.log_metric(run_id, f"best_{clean}", float(v))
 
         # --- Швидкість inference та пристрій ---
         speed = best_results.speed
         device_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu"
         total_ms = sum(speed.values())
-        mlflow.log_param("speed_device", device_name)
-        mlflow.log_metrics({
+        client.log_param(run_id, "speed_device", device_name)
+        speed_metrics = {
             "speed_preprocess_ms":  round(speed.get("preprocess", 0), 3),
             "speed_inference_ms":   round(speed.get("inference", 0), 3),
             "speed_postprocess_ms": round(speed.get("postprocess", 0), 3),
             "speed_total_ms":       round(total_ms, 3),
             "speed_fps":            round(1000.0 / total_ms, 1) if total_ms > 0 else 0,
-        })
+        }
+        for mk, mv in speed_metrics.items():
+            client.log_metric(run_id, mk, mv)
 
         # --- Кутова точність (лише для bee_pose: 2 кточки без visibility) ---
         kpt_shape = list(cfg.data.get("kpt_shape", []))
@@ -254,7 +272,8 @@ def main(cfg: DictConfig):
             print("INFO: Обчислення pose-метрик на val-сеті...")
             pose = _compute_pose_metrics(model, prepared_dir)
             if pose:
-                mlflow.log_metrics(pose)
+                for mk, mv in pose.items():
+                    client.log_metric(run_id, mk, mv)
                 print(f"INFO: NME={pose['pose_nme_mean']:.4f} | "
                       f"angular mean={pose['angular_error_mean_deg']}° | "
                       f"within 15°={pose['angular_accuracy_within_15deg']}% "
@@ -270,12 +289,12 @@ def main(cfg: DictConfig):
             ("*.png",           "yolo_run"),
         ]:
             for f in save_path.glob(pattern):
-                mlflow.log_artifact(str(f), artifact_path=dest)
+                client.log_artifact(run_id, str(f), artifact_path=dest)
 
         # --- Розмір моделі ---
         best_pt = save_path / "weights" / "best.pt"
         if best_pt.exists():
-            mlflow.log_metric("model_size_mb", round(best_pt.stat().st_size / 1e6, 2))
+            client.log_metric(run_id, "model_size_mb", round(best_pt.stat().st_size / 1e6, 2))
 
         print(f"INFO: Артефакти збережено з {save_path}")
 

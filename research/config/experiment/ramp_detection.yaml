@@ -14,8 +14,20 @@ data:
   split_strategy: "random"
   val_ratio: 0.2
 
+# --- Гіперпараметри навчання ---
 training:
-  fliplr: 0.0  # вимкнено — flip_idx для 4 кутів потребує верифікації
+  epochs: 1
+  batch: 4
+  imgsz: 320
+  optimizer: "AdamW"
+  lr0: 0.001
+  patience: 20
+  # --- Аугментації ---
+  mosaic: 1.0
+  degrees: 0.0
+  fliplr: 0.0                         # вимкнено — flip_idx для 4 кутів потребує верифікації
+  translate: 0.1
+  scale: 0.5
 
 model:
   name: "yolo11s-pose.pt"

@@ -11,11 +11,19 @@ data:
   nc: 1
   names: ["bee"]
   kpt_shape: [2, 2]                   # 2 keypoints (x, y) без visibility
-  split_strategy: "hive" #or "random"
+  split_strategy: "hive"              # or "random"
   val_hives: ["20230711b", "20230609e"]
   val_ratio: 0.25
 
+# --- Гіперпараметри навчання ---
 training:
+  epochs: 1
+  batch: 4
+  imgsz: 320
+  optimizer: "AdamW"
+  lr0: 0.001
+  patience: 20
+  # --- Аугментації ---
   mosaic: 0.48
   degrees: 7.6
   fliplr: 0.36

@@ -95,8 +95,12 @@ uv run src/prepare.py experiment=ramp_detection data.val_ratio=0.15
 ### Крок 3 — навчання
 
 ```bash
-uv run src/run_experiment.py experiment=bee_pose training.epochs=50
-uv run src/run_experiment.py experiment=ramp_detection training.epochs=100
+# Production запуск (параметри з experiment/*.yaml)
+uv run src/run_experiment.py experiment=bee_pose
+uv run src/run_experiment.py experiment=ramp_detection
+
+# Локальний тест (override epochs/imgsz для швидкої перевірки)
+uv run src/run_experiment.py experiment=bee_pose training.epochs=1 training.imgsz=320
 ```
 
 Якщо `data.yaml` відсутній — падає з підказкою запустити `prepare.py`.
@@ -144,37 +148,44 @@ data:
 ## Конфігурація (Hydra)
 
 ```text
-config/config.yaml          ← глобальні дефолти
-config/experiment/*.yaml    ← перевизначення для конкретного завдання
+config/config.yaml          ← інфраструктурні дефолти (seed, device, workers)
+config/experiment/*.yaml    ← повний опис експерименту (дані + навчання + модель)
 ```
 
-Experiment-конфіг завжди перекриває дефолти з `config.yaml`. Будь-який параметр можна перевизначити через CLI без зміни файлів.
+Кожен experiment-конфіг — **самодостатній**: містить усі гіперпараметри для production-запуску. `config.yaml` задає лише інфраструктурні дефолти, які рідко змінюються. Будь-який параметр можна перевизначити через CLI.
 
-### Ключові параметри
+### Параметри experiment/*.yaml
 
-| Параметр              | Дефолт   | Опис                              |
-| --------------------- | -------- | --------------------------------- |
-| `training.epochs`     | `1`      | Кількість епох (1 для тесту)      |
-| `training.imgsz`      | `320`    | Розмір входу (кратне 32)          |
-| `training.batch`      | `4`      | Розмір батчу                      |
-| `training.lr0`        | `0.001`  | Початковий learning rate          |
-| `training.optimizer`  | `AdamW`  | Оптимізатор                       |
-| `training.patience`   | `20`     | Early stopping patience           |
-| `data.split_strategy` | `random` | `random` \| `hive`                |
-| `data.val_ratio`      | `0.2`    | Частка val при random split       |
-| `data.val_hives`      | `[]`     | Hive IDs для val при hive split   |
+| Параметр              | bee_pose | ramp_detection | Опис                             |
+| --------------------- | -------- | -------------- | -------------------------------- |
+| `training.epochs`     | `50`     | `100`          | Кількість епох                   |
+| `training.imgsz`      | `1920`   | `640`          | Розмір входу (кратне 32)         |
+| `training.batch`      | `4`      | `8`            | Розмір батчу                     |
+| `training.lr0`        | `0.01`   | `0.01`         | Початковий learning rate         |
+| `training.optimizer`  | `AdamW`  | `AdamW`        | Оптимізатор                      |
+| `training.patience`   | `20`     | `20`           | Early stopping patience          |
+| `data.split_strategy` | `hive`   | `random`       | `random` \| `hive`               |
 
-### Аугментації (`bee_pose` — налаштовані за результатами попередніх експериментів)
+### Аугментації
 
-| Параметр    | bee_pose | ramp (дефолт YOLO) |
-| ----------- | -------- | ------------------ |
-| `mosaic`    | 0.48     | 1.0                |
-| `degrees`   | 7.6      | 0.0                |
-| `fliplr`    | 0.36     | 0.0 ¹              |
-| `translate` | 0.07     | 0.1                |
-| `scale`     | 0.42     | 0.5                |
+| Параметр    | bee_pose | ramp_detection | Опис                              |
+| ----------- | -------- | -------------- | --------------------------------- |
+| `mosaic`    | 0.48     | 1.0            | Ймовірність mosaic                |
+| `degrees`   | 7.6      | 0.0            | Ротація (градуси)                 |
+| `fliplr`    | 0.36     | 0.0 ¹          | Горизонтальний flip               |
+| `translate` | 0.07     | 0.1            | Зсув                              |
+| `scale`     | 0.42     | 0.5            | Масштаб                           |
 
 ¹ `fliplr=0.0` для ramp — порядок кутових keypoints потребує верифікації перед увімкненням flip.
+
+### Інфраструктурні дефолти (config.yaml)
+
+| Параметр              | Значення | Опис                              |
+| --------------------- | -------- | --------------------------------- |
+| `training.seed`       | `42`     | Random seed                       |
+| `training.device`     | `""`     | Auto (GPU якщо є, інакше CPU)     |
+| `training.workers`    | `4`      | Dataloader workers                |
+| `training.project`    | `runs`   | Директорія для збереження         |
 
 ### Додати новий експеримент
 
@@ -197,6 +208,19 @@ data:
   split_strategy: "hive"
   val_hives: ["20230711b", "20230609e"]
 
+training:
+  epochs: 50
+  batch: 4
+  imgsz: 1920
+  optimizer: "AdamW"
+  lr0: 0.01
+  patience: 20
+  mosaic: 0.48
+  degrees: 7.6
+  fliplr: 0.36
+  translate: 0.07
+  scale: 0.42
+
 model:
   name: "yolo11m-pose.pt"
 ```
@@ -210,11 +234,21 @@ model:
 - **Модель:** `model`
 - **Навчання:** `epochs`, `batch`, `imgsz`, `lr0`, `optimizer`, `patience`, `seed`, `mosaic`, `degrees`, `fliplr`, `translate`, `scale`
 - **Дані:** `nc`, `classes`, `split_strategy`, `val_ratio`/`val_hives`, `train_images`, `val_images`, `total_images`
+- **Швидкість:** `speed_device`
 
 **Метрики:**
 
 - `last_*` — метрики останньої епохи (train losses + val)
 - `best_*` — метрики `best.pt` після завершення навчання
+- **Швидкість inference:**
+  - `speed_preprocess_ms`, `speed_inference_ms`, `speed_postprocess_ms` — час кожного етапу
+  - `speed_total_ms`, `speed_fps` — загальний час та FPS
+- **Pose-метрики** (лише для bee_pose, kpt_shape=[2,2]):
+  - `pose_nme_mean`, `pose_nme_median` — Normalized Mean Error (менше = краще)
+  - `angular_error_mean_deg`, `angular_error_median_deg` — помилка кута голова→жало
+  - `angular_accuracy_within_15deg`, `angular_accuracy_within_30deg` — % передбачень в межах порогу
+  - `pose_n_matched` — кількість зіставлених пар GT↔prediction
+- `model_size_mb` — розмір best.pt
 
 **Артефакти:**
 
@@ -250,7 +284,7 @@ os.environ["KAGGLE_KEY"]    = userdata.get("KAGGLE_KEY")
 # ── Клітинка 3: Pipeline ──────────────────────────────────────────────────
 !uv run src/download.py pose
 !uv run src/prepare.py experiment=bee_pose
-!uv run src/run_experiment.py experiment=bee_pose training.epochs=50 training.batch=8
+!uv run src/run_experiment.py experiment=bee_pose  # production params з experiment config
 
 # Або ramp detection
 # !uv run src/download.py ramp

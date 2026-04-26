@@ -9,30 +9,17 @@ project:
   experiment_name: "YOLO_Default"
   note: ""
 
-# --- Гіперпараметри навчання ---
-# epochs: 1  — дефолт для локального тесту; для повного навчання: training.epochs=50
+# --- Інфраструктурні дефолти (не міняються) ---
 training:
-  epochs: 1
-  batch: 4
-  imgsz: 320
   seed: 42
   device: ""          # "" = auto (GPU якщо є, інакше CPU)
-  optimizer: "AdamW"
-  lr0: 0.001
-  patience: 20
   workers: 4
   save_period: -1
   project: "runs"
   name: "train_run"
-  # --- Аугментації (дефолти YOLO) ---
-  mosaic: 1.0
-  degrees: 0.0
-  fliplr: 0.5
-  translate: 0.1
-  scale: 0.5
 
-# --- Дані (дефолти для split; решта задається в experiment/*.yaml) ---
+# --- Дані (структурні дефолти) ---
 data:
-  split_strategy: "random"  # random | hive
+  split_strategy: "random"
   val_ratio: 0.2
   val_hives: []
