@@ -53,14 +53,12 @@ def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
     if not img_paths:
         return {}
 
-    # Use device="cpu" to guarantee no CUDA OOM after heavy 1920px training
-    all_results = model.predict(
-        [str(p) for p in img_paths], imgsz=imgsz, batch=1, verbose=False, device="cpu"
-    )
-
     nme_vals, angle_errors = [], []
 
-    for img_path, res in zip(img_paths, all_results):
+    # Process one image at a time on CPU to prevent both CUDA VRAM and System RAM OOM
+    for img_path in img_paths:
+        res = model.predict(str(img_path), imgsz=imgsz, verbose=False, device="cpu")[0]
+        
         lbl_path = val_lbl_dir / img_path.with_suffix(".txt").name
         if not lbl_path.exists():
             continue
