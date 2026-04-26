@@ -54,6 +54,7 @@ def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
         return {}
 
     nme_vals, angle_errors = [], []
+    total_gt_count = 0
 
     # Process one image at a time to prevent System RAM accumulation.
     # GPU is safe to use here because we process individually and VRAM was cleared.
@@ -73,6 +74,8 @@ def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
                 cx, cy, w, h = parts[1:5]
                 gt_boxes.append([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2])
                 gt_kpts.append(np.array(parts[5:9]).reshape(2, 2))
+
+        total_gt_count += len(gt_boxes)
 
         if not gt_boxes or res.boxes is None or res.keypoints is None:
             continue
@@ -122,7 +125,7 @@ def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
             angle_errors.append(np.degrees(min(diff, 2 * np.pi - diff)))
 
     if not nme_vals:
-        return {}
+        return {"pose_n_total": total_gt_count}
 
     nme  = np.array(nme_vals)
     angl = np.array(angle_errors)
@@ -130,6 +133,8 @@ def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
         "pose_nme_mean":                 round(float(np.mean(nme)), 4),
         "pose_nme_median":               round(float(np.median(nme)), 4),
         "pose_n_matched":                len(nme_vals),
+        "pose_n_total":                  total_gt_count,
+        "pose_coverage_pct":             round(len(nme_vals) / max(total_gt_count, 1) * 100, 1),
         "angular_error_mean_deg":        round(float(np.mean(angl)), 2),
         "angular_error_median_deg":      round(float(np.median(angl)), 2),
         "angular_accuracy_within_15deg": round(float(np.mean(angl < 15) * 100), 1),
@@ -230,6 +235,7 @@ def main(cfg: DictConfig):
             fliplr=cfg.training.fliplr,
             translate=cfg.training.translate,
             scale=cfg.training.scale,
+            cache=cfg.training.cache,
             project=os.path.join(original_cwd, cfg.training.project),
             name=cfg.training.name,
         )
@@ -240,6 +246,9 @@ def main(cfg: DictConfig):
         run_status = client.get_run(run_id).info.status
         if run_status == "FINISHED":
             client.set_terminated(run_id, status="RUNNING")
+
+        # Фіксуємо реальну кількість епох (якщо спрацював patience)
+        client.log_param(run_id, "actual_epochs", int(model.trainer.epoch + 1))
 
         # --- Метрики останньої епохи (train losses + val) ---
         for k, v in model.trainer.metrics.items():

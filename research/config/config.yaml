@@ -17,6 +17,7 @@ training:
   save_period: -1
   project: "runs"
   name: "train_run"
+  cache: "ram"
 
 # --- Дані (структурні дефолти) ---
 data:

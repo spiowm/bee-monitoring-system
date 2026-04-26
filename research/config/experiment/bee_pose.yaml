@@ -29,6 +29,12 @@ training:
   fliplr: 0.36
   translate: 0.07
   scale: 0.42
+  cache: "ram"
+
+  hsv_v: 0.4
+  hsv_h: 0.015
+  hsv_s: 0.7
+  mixup: 0.0
 
 model:
   name: "yolo11s-pose.pt"

@@ -28,6 +28,7 @@ training:
   fliplr: 0.0                         # вимкнено — flip_idx для 4 кутів потребує верифікації
   translate: 0.1
   scale: 0.5
+  cache: "ram"
 
 model:
   name: "yolo11s-pose.pt"
