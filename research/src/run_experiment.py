@@ -36,7 +36,7 @@ def _init_dagshub(dagshub_user: str, dagshub_repo: str) -> None:
         dagshub.init(mlflow=True)
 
 
-def _compute_pose_metrics(model, prepared_dir: Path) -> dict:
+def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int = 640) -> dict:
     """NME and angular error for bee pose (head→stinger) on the validation set.
 
     NME (Normalized Mean Error) = mean keypoint distance / GT bbox diagonal.
@@ -50,7 +50,12 @@ def _compute_pose_metrics(model, prepared_dir: Path) -> dict:
     if not img_paths:
         return {}
 
-    all_results = model.predict([str(p) for p in img_paths], verbose=False)
+    # Звільняємо VRAM після тренування
+    torch.cuda.empty_cache()
+
+    all_results = model.predict(
+        [str(p) for p in img_paths], imgsz=imgsz, batch=16, verbose=False
+    )
 
     nme_vals, angle_errors = [], []
 
@@ -270,7 +275,7 @@ def main(cfg: DictConfig):
         kpt_shape = list(cfg.data.get("kpt_shape", []))
         if kpt_shape == [2, 2]:
             print("INFO: Обчислення pose-метрик на val-сеті...")
-            pose = _compute_pose_metrics(model, prepared_dir)
+            pose = _compute_pose_metrics(model, prepared_dir, imgsz=cfg.training.imgsz)
             if pose:
                 for mk, mv in pose.items():
                     client.log_metric(run_id, mk, mv)
