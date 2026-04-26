@@ -125,21 +125,31 @@ def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
             angle_errors.append(np.degrees(min(diff, 2 * np.pi - diff)))
 
     if not nme_vals:
-        return {"pose_n_total": total_gt_count}
+        print("WARNING: Всі keypoints вироджені (0,0) — модель не детектує keypoints")
+        return {
+            "pose_n_matched": 0,
+            "pose_n_total": total_gt_count,
+            "pose_coverage_pct": 0.0,
+            "pose_keypoint_failure_rate": 1.0,
+        }
 
     nme  = np.array(nme_vals)
-    angl = np.array(angle_errors)
-    return {
-        "pose_nme_mean":                 round(float(np.mean(nme)), 4),
-        "pose_nme_median":               round(float(np.median(nme)), 4),
-        "pose_n_matched":                len(nme_vals),
-        "pose_n_total":                  total_gt_count,
-        "pose_coverage_pct":             round(len(nme_vals) / max(total_gt_count, 1) * 100, 1),
-        "angular_error_mean_deg":        round(float(np.mean(angl)), 2),
-        "angular_error_median_deg":      round(float(np.median(angl)), 2),
-        "angular_accuracy_within_15deg": round(float(np.mean(angl < 15) * 100), 1),
-        "angular_accuracy_within_30deg": round(float(np.mean(angl < 30) * 100), 1),
+    metrics = {
+        "pose_nme_mean":     round(float(np.mean(nme)), 4),
+        "pose_nme_median":   round(float(np.median(nme)), 4),
+        "pose_n_matched":    len(nme_vals),
+        "pose_n_total":      total_gt_count,
+        "pose_coverage_pct": round(len(nme_vals) / max(total_gt_count, 1) * 100, 1),
     }
+    if angle_errors:
+        angl = np.array(angle_errors)
+        metrics.update({
+            "angular_error_mean_deg":        round(float(np.mean(angl)), 2),
+            "angular_error_median_deg":      round(float(np.median(angl)), 2),
+            "angular_accuracy_within_15deg": round(float(np.mean(angl < 15) * 100), 1),
+            "angular_accuracy_within_30deg": round(float(np.mean(angl < 30) * 100), 1),
+        })
+    return metrics
 
 
 @hydra.main(version_base=None, config_path="../config", config_name="config")
@@ -187,6 +197,10 @@ def main(cfg: DictConfig):
             "fliplr":    cfg.training.fliplr,
             "translate": cfg.training.translate,
             "scale":     cfg.training.scale,
+            "hsv_h":     cfg.training.hsv_h,
+            "hsv_s":     cfg.training.hsv_s,
+            "hsv_v":     cfg.training.hsv_v,
+            "mixup":     cfg.training.mixup,
         })
 
         # --- Дані ---
@@ -197,7 +211,7 @@ def main(cfg: DictConfig):
             "split_strategy": split_strategy,
         })
         if split_strategy == "hive":
-            mlflow.log_param("val_hives", ",".join(cfg.data.val_hives))
+            mlflow.log_param("val_hives", ",".join(str(h) for h in cfg.data.val_hives))
         else:
             mlflow.log_param("val_ratio", cfg.data.val_ratio)
 
@@ -235,6 +249,10 @@ def main(cfg: DictConfig):
             fliplr=cfg.training.fliplr,
             translate=cfg.training.translate,
             scale=cfg.training.scale,
+            hsv_h=cfg.training.hsv_h,
+            hsv_s=cfg.training.hsv_s,
+            hsv_v=cfg.training.hsv_v,
+            mixup=cfg.training.mixup,
             cache=cfg.training.cache,
             project=os.path.join(original_cwd, cfg.training.project),
             name=cfg.training.name,
@@ -285,25 +303,27 @@ def main(cfg: DictConfig):
         best_pt = save_path / "weights" / "best.pt"
         del model.trainer
         del model
-        import gc
         gc.collect()
         torch.cuda.empty_cache()
 
         # --- Кутова точність (лише для bee_pose: 2 кточки без visibility) ---
         kpt_shape = list(cfg.data.get("kpt_shape", []))
-        if kpt_shape == [2, 2]:
+        if kpt_shape == [2, 2] and best_pt.exists():
             print("INFO: Обчислення pose-метрик на val-сеті...")
             pose_model = YOLO(str(best_pt))
             pose = _compute_pose_metrics(pose_model, prepared_dir, imgsz=cfg.training.imgsz)
             if pose:
                 for mk, mv in pose.items():
                     client.log_metric(run_id, mk, mv)
-                print(f"INFO: NME={pose['pose_nme_mean']:.4f} | "
-                      f"angular mean={pose['angular_error_mean_deg']}° | "
-                      f"within 15°={pose['angular_accuracy_within_15deg']}% "
-                      f"(n={pose['pose_n_matched']})")
+                if "pose_nme_mean" in pose:
+                    msg = (f"INFO: NME={pose['pose_nme_mean']:.4f} | "
+                           f"(n={pose['pose_n_matched']})")
+                    if "angular_error_mean_deg" in pose:
+                        msg += (f" | angular mean={pose['angular_error_mean_deg']}°"
+                                f" | within 15°={pose['angular_accuracy_within_15deg']}%")
+                    print(msg)
             else:
-                print("WARNING: Pose-метрики не вдалось обчислити (немає зіставлених пар).")
+                print("WARNING: Pose-метрики не вдалось обчислити (немає зображень у val-сеті).")
 
         for pattern, dest in [
             ("weights/best.pt", "yolo_run/weights"),
