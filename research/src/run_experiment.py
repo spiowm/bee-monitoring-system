@@ -53,8 +53,9 @@ def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
     if not img_paths:
         return {}
 
+    # Use device="cpu" to guarantee no CUDA OOM after heavy 1920px training
     all_results = model.predict(
-        [str(p) for p in img_paths], imgsz=imgsz, batch=1, verbose=False
+        [str(p) for p in img_paths], imgsz=imgsz, batch=1, verbose=False, device="cpu"
     )
 
     nme_vals, angle_errors = [], []
@@ -271,20 +272,15 @@ def main(cfg: DictConfig):
         for mk, mv in speed_metrics.items():
             client.log_metric(run_id, mk, mv)
 
-        # --- Зберігаємо шлях та звільняємо GPU від тренера ---
+        # --- Зберігаємо шлях ---
         save_path = Path(model.trainer.save_dir)
         best_pt = save_path / "weights" / "best.pt"
-        del model.trainer
-        del model
-        gc.collect()
-        torch.cuda.empty_cache()
 
         # --- Кутова точність (лише для bee_pose: 2 кточки без visibility) ---
         kpt_shape = list(cfg.data.get("kpt_shape", []))
         if kpt_shape == [2, 2]:
-            print("INFO: Обчислення pose-метрик на val-сеті...")
-            pose_model = YOLO(str(best_pt))
-            pose = _compute_pose_metrics(pose_model, prepared_dir, imgsz=cfg.training.imgsz)
+            print("INFO: Обчислення pose-метрик на val-сеті (на CPU для уникнення OOM)...")
+            pose = _compute_pose_metrics(model, prepared_dir, imgsz=cfg.training.imgsz)
             if pose:
                 for mk, mv in pose.items():
                     client.log_metric(run_id, mk, mv)
