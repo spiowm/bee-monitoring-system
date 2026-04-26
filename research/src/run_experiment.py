@@ -1,3 +1,4 @@
+import gc
 import os
 from datetime import datetime
 from pathlib import Path
@@ -36,12 +37,14 @@ def _init_dagshub(dagshub_user: str, dagshub_repo: str) -> None:
         dagshub.init(mlflow=True)
 
 
-def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int = 640) -> dict:
+def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
     """NME and angular error for bee pose (head→stinger) on the validation set.
 
     NME (Normalized Mean Error) = mean keypoint distance / GT bbox diagonal.
     Angular error = circular difference between GT and predicted head→stinger angle.
     Both use IoU-based GT↔prediction matching with pool removal to prevent double-matching.
+
+    Called on a freshly loaded model (after training model is deleted from GPU).
     """
     val_img_dir = prepared_dir / "val" / "images"
     val_lbl_dir = prepared_dir / "val" / "labels"
@@ -50,11 +53,8 @@ def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int = 640) -> dict:
     if not img_paths:
         return {}
 
-    # Звільняємо VRAM після тренування
-    torch.cuda.empty_cache()
-
     all_results = model.predict(
-        [str(p) for p in img_paths], imgsz=imgsz, batch=16, verbose=False
+        [str(p) for p in img_paths], imgsz=imgsz, batch=1, verbose=False
     )
 
     nme_vals, angle_errors = [], []
@@ -271,11 +271,20 @@ def main(cfg: DictConfig):
         for mk, mv in speed_metrics.items():
             client.log_metric(run_id, mk, mv)
 
+        # --- Зберігаємо шлях та звільняємо GPU від тренера ---
+        save_path = Path(model.trainer.save_dir)
+        best_pt = save_path / "weights" / "best.pt"
+        del model.trainer
+        del model
+        gc.collect()
+        torch.cuda.empty_cache()
+
         # --- Кутова точність (лише для bee_pose: 2 кточки без visibility) ---
         kpt_shape = list(cfg.data.get("kpt_shape", []))
         if kpt_shape == [2, 2]:
             print("INFO: Обчислення pose-метрик на val-сеті...")
-            pose = _compute_pose_metrics(model, prepared_dir, imgsz=cfg.training.imgsz)
+            pose_model = YOLO(str(best_pt))
+            pose = _compute_pose_metrics(pose_model, prepared_dir, imgsz=cfg.training.imgsz)
             if pose:
                 for mk, mv in pose.items():
                     client.log_metric(run_id, mk, mv)
@@ -286,7 +295,6 @@ def main(cfg: DictConfig):
             else:
                 print("WARNING: Pose-метрики не вдалось обчислити (немає зіставлених пар).")
 
-        save_path = Path(model.trainer.save_dir)
         for pattern, dest in [
             ("weights/best.pt", "yolo_run/weights"),
             ("weights/last.pt", "yolo_run/weights"),
@@ -297,7 +305,6 @@ def main(cfg: DictConfig):
                 client.log_artifact(run_id, str(f), artifact_path=dest)
 
         # --- Розмір моделі ---
-        best_pt = save_path / "weights" / "best.pt"
         if best_pt.exists():
             client.log_metric(run_id, "model_size_mb", round(best_pt.stat().st_size / 1e6, 2))
 
