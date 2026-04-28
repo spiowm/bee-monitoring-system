@@ -1,27 +1,35 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { 
-  createJobJobsPost, 
-  createTestJobJobsTestPost, 
-  getJobJobsJobIdGet, 
-  getJobLiveStatsJobsJobIdLiveGet, 
-  listTestVideosJobsTestVideosGet 
+import {
+  createJobJobsPost,
+  createTestJobJobsTestPost,
+  getJobJobsJobIdGet,
+  getJobLiveStatsJobsJobIdLiveGet,
+  listTestVideosJobsTestVideosGet,
+  deleteJobJobsJobIdDelete,
 } from '../api/generated';
 import type { ProcessConfig, VizConfig, Job, LiveStats } from '../types';
 import JobConfigPanel from '../components/JobConfigPanel';
 import LiveStatsPanel from '../components/LiveStatsPanel';
-import { Activity, Video, Download, AlertCircle } from 'lucide-react';
+import { Video, Download, AlertCircle, Square } from 'lucide-react';
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [config, setConfig] = useState<ProcessConfig>({
+  const [config, setConfig] = useState({
     tracker_name: 'bytetrack', approach: 'A', line_position: 0.5,
     conf_threshold: 0.35, kp_conf_threshold: 0.5, track_tail_length: 30,
-    angle_threshold_deg: 60.0, ramp_detect_interval: 30
-  });
+    angle_threshold_deg: 60.0, ramp_detect_interval: 30,
+    model_name: null as string | null,
+    behavior_foraging_speed_min: 100,
+    behavior_fanning_speed_max: 15,
+    behavior_fanning_duration_min: 2.0,
+    behavior_guarding_speed_min: 15,
+    behavior_guarding_speed_max: 80,
+    behavior_guarding_spread_ratio: 1.5,
+  } as unknown as ProcessConfig);
 
   const [vizConfig, setVizConfig] = useState<VizConfig>({
     show_boxes: true, show_ids: true, show_confidence: true,
@@ -99,6 +107,16 @@ export default function UploadPage() {
     }
   });
 
+  const stopMut = useMutation({
+    mutationFn: async (id: string) => {
+      await deleteJobJobsJobIdDelete({ path: { job_id: id } });
+    },
+    onSuccess: () => {
+      setJobId(null);
+      setIsProcessing(false);
+    },
+  });
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full flex-grow">
       {/* 1. LEFT COLUMN: Config */}
@@ -119,20 +137,36 @@ export default function UploadPage() {
       <div className="flex-grow flex flex-col gap-4 min-w-0">
         <div className="card flex-grow flex flex-col items-center justify-center p-0 overflow-hidden relative min-h-[400px]">
           {!jobId && !isProcessing && (
-            <div className="text-center text-gray-500">
-              <Video size={48} className="mx-auto mb-4 opacity-30" />
-              <p>Select a video and press Start Pipeline</p>
+            <div className="text-center text-gray-600 select-none">
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center mx-auto mb-4">
+                <Video size={36} className="opacity-30" />
+              </div>
+              <p className="text-sm text-gray-500">Select a video and press</p>
+              <p className="text-xs text-gray-700 mt-1">Start Pipeline</p>
             </div>
           )}
-          
+
           {isProcessing && (
-            <div className="w-full max-w-md p-6 text-center">
-              <div className="text-[var(--accent)] mb-4 animate-bounce"><Activity size={48} className="mx-auto" /></div>
-              <h3 className="text-xl font-bold mb-2">Analyzing Video...</h3>
-              <div className="w-full bg-gray-800 rounded-full h-3 mb-2 overflow-hidden">
-                <div className="bg-[var(--accent)] h-3 rounded-full transition-all duration-300" style={{width: `${(liveStats?.current_frame || 0) / Math.max(1, (liveStats?.total_frames || 1)) * 100}%`}}></div>
+            <div className="w-full max-w-sm p-8 text-center">
+              <div className="w-16 h-16 rounded-full border-4 border-[var(--accent)]/20 border-t-[var(--accent)] animate-spin mx-auto mb-5" />
+              <h3 className="text-lg font-bold mb-1 text-gray-100">Analyzing Video</h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Frame {liveStats?.current_frame || 0} / {liveStats?.total_frames || '?'}
+              </p>
+              <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden mb-5">
+                <div
+                  className="bg-[var(--accent)] h-full rounded-full transition-all duration-300"
+                  style={{ width: `${(liveStats?.current_frame || 0) / Math.max(1, liveStats?.total_frames || 1) * 100}%` }}
+                />
               </div>
-              <p className="text-sm text-gray-400">Frame {liveStats?.current_frame || 0} / {liveStats?.total_frames || '?'}</p>
+              <button
+                onClick={() => jobId && stopMut.mutate(jobId)}
+                disabled={stopMut.isPending}
+                className="flex items-center gap-2 mx-auto text-sm px-4 py-2 rounded-lg bg-red-900/40 hover:bg-red-800/60 border border-red-700/50 text-red-300 transition-colors disabled:opacity-50"
+              >
+                <Square size={13} />
+                {stopMut.isPending ? 'Stopping…' : 'Stop & Delete'}
+              </button>
             </div>
           )}
 

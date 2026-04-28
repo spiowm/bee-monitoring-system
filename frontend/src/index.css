@@ -14,6 +14,10 @@
     --color-fallback: #a0aec0;
     --text-primary: #e2e8f0;
     --text-muted: #718096;
+    --behavior-foraging: #48bb78;
+    --behavior-fanning: #63b3ed;
+    --behavior-guarding: #f0b429;
+    --behavior-washboarding: #a0aec0;
   }
   body {
     @apply bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans antialiased m-0 min-h-screen;

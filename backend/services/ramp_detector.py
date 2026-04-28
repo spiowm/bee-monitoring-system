@@ -1,7 +1,11 @@
 import logging
+import pathlib
+import torch
 from ultralytics import YOLO
 from config import settings
-import pathlib
+
+_DEVICE = 0 if torch.cuda.is_available() else "cpu"
+_HALF = isinstance(_DEVICE, int)
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +49,7 @@ class RampDetector:
         self.frames_since_detect += 1
         
         if self.frames_since_detect >= settings.RAMP_DETECT_INTERVAL:
-            results = self.model(frame, verbose=False)
+            results = self.model(frame, verbose=False, device=_DEVICE, half=_HALF)
             if results and len(results[0].boxes) > 0:
                 box = results[0].boxes[0].xyxy[0].cpu().numpy()
                 self.cached_bbox = [float(box[0]), float(box[1]), float(box[2]), float(box[3])]

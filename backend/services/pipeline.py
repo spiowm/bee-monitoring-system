@@ -9,7 +9,7 @@ from services.counter import TrafficCounter
 from services.annotator import FrameAnnotator
 from services.track_history import TrackHistory
 from services.pipeline_stages import (
-    FrameContext, DetectionStage, TrackingStage, TrackUpdateStage, 
+    FrameContext, DetectionStage, TrackingStage, TrackUpdateStage,
     BehaviorStage, CountingStage, AnnotationStage
 )
 
@@ -56,14 +56,14 @@ class VideoPipeline:
             "current_fps": 0.0,
         }
 
-    def process_frame(self, frame: np.ndarray, frame_num: int, fps: float) -> np.ndarray:
+    def process_frame(self, frame: np.ndarray, frame_num: int, fps: float, detection_result=None) -> np.ndarray:
         frame_start = time.time()
-        
-        ctx = FrameContext(frame=frame, frame_num=frame_num, fps=fps)
-        
+
+        ctx = FrameContext(frame=frame, frame_num=frame_num, fps=fps, detection_result=detection_result)
+
         for stage in self.stages:
             stage.process(ctx, self.pipeline_state)
-            
+
         self.pipeline_state["current_fps"] = 1.0 / (time.time() - frame_start + 0.001)
 
         return ctx.annotated_frame

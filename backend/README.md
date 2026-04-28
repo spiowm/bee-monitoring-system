@@ -1,57 +1,64 @@
-# Backend — REST API сервер (FastAPI)
+# Backend — FastAPI + YOLO
 
-Цей модуль відповідає за всю "тяжку" роботу: процесинг завантажених відео за допомогою моделей комп'ютерного зору (YOLO), відстеження (ByteTrack/OC-SORT) та збереження аналітики в базу даних.
+Відео-пайплайн: YOLO-детекція → ByteTrack → підрахунок трафіку → анотоване H.264 відео → MongoDB.
 
-## ✨ Ключові можливості
-
-- **Фоновий процесинг:** Відео обробляються у фонових задачах (FastAPI BackgroundTasks), що дозволяє не блокувати запит.
-- **Pipeline обробки:** відео → YOLO → ByteTrack → Аналіз напрямку → Аналіз поведінки → Збереження анотованого відео.
-- **Два режими підрахунку трафіку:**
-  - **A (Trajectory Only):** Тільки за траєкторією (швидше, але менш точно).
-  - **B (Pose Filtered):** Верифікація напрямку руху за допомогою вектору пози бджоли (голова/жало), розпізнаного через YOLO-pose. Якщо напрямок вектору розходиться з вектором руху треку більше ніж на `angle_threshold_deg` — перетин відхиляється.
-- **Розпізнавання поведінки (Baseline):** Евристична модель, базована на швидкості та напрямку:
-  - **Foraging:** висока швидкість руху.
-  - **Fanning:** дуже повільний рух.
-  - **Guarding:** рух переважно вздовж входу.
-  - **Washboarding:** фоновий патерн.
-- База даних: Зберігає всі події та аналітику в **MongoDB**.
-
-## 🚀 Запуск та налаштування
-
-### Вимоги
-- Python >=3.12
-- [uv](https://docs.astral.sh/uv/) (менеджер пакетів для Python)
-- Робоча інстанція MongoDB (локально або в хмарі)
-
-### 1. Встановлення залежностей
-Замість `pip` використовується `uv`, він значно швидший та надійніший.
+## Запуск
 
 ```bash
 cd backend
-# Сихронізація (встановлення) всіх залежностей з uv.lock
 uv sync
-```
-
-### 2. Налаштування оточення (.env)
-Створіть файл `.env` (або скопіюйте з `.env-example` якщо є):
-
-```env
-MONGO_URI=mongodb://localhost:27017
-# або ваш Cloud URI
-```
-
-### 3. Запуск сервера
-Запустіть FastAPI сервер:
-
-```bash
 uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
-API буде доступне за адресою: `http://localhost:8000/docs` (Swagger UI).
 
-## 🛠 Технологічний стек
-- FastAPI
-- Motor (Async MongoDB)
-- PyTorch & Ultralytics (YOLO)
-- Supervision (для трекінгу ByteTrack / OC-SORT)
-- OpenCV
-- Pydantic
+Потрібен файл `backend/.env`:
+```env
+MONGO_URI=mongodb://localhost:27017
+```
+
+API docs: `http://localhost:8000/docs`
+
+## Стек
+
+- **FastAPI** + Motor (async MongoDB)
+- **Ultralytics YOLO** (детекція + pose estimation)
+- **Supervision** (ByteTrack / OC-SORT трекінг)
+- **OpenCV** + FFmpeg (відео процесинг)
+- **Pydantic v2** + pydantic-settings
+
+## Структура
+
+```
+backend/
+├── main.py              # FastAPI app + lifespan (MongoDB + YOLO warm-up)
+├── config.py            # Settings з .env
+├── schemas/schemas.py   # ProcessConfig, VizConfig, JobCreateResponse
+├── db/mongodb.py        # Motor клієнт
+├── routers/
+│   ├── jobs.py          # POST /jobs, GET /jobs/{id}, GET /jobs/{id}/live, DELETE
+│   └── analytics.py    # GET /analytics/summary, GET /analytics/compare-approaches
+└── services/
+    ├── video_processor.py   # Точка входу: get_bee_model() singleton, process_video()
+    ├── pipeline.py          # VideoPipeline: оркестрація стадій
+    ├── pipeline_stages.py   # 6 стадій: Detection→Tracking→Update→Behavior→Counting→Annotation
+    ├── ramp_detector.py     # Singleton ramp bbox (оновлюється кожні N кадрів)
+    ├── counter.py           # TrafficCounter: Approach A і B
+    ├── orientation.py       # Вектор голова→жало з keypoints
+    ├── behavior.py          # Heuristic класифікація (foraging/fanning/guarding/washboarding)
+    └── ffmpeg_service.py    # raw mp4 → H.264 з faststart
+```
+
+## Два підходи підрахунку
+
+**Approach A** — тільки траєкторія: перетин горизонтальної лінії на рампі.
+
+**Approach B** — pose-валідований: також перевіряє що вектор голова→жало збігається з напрямком руху (в межах `angle_threshold_deg`). При відсутності keypoints — fallback на A. Події теговані `pose_confirmed` / `trajectory_fallback`.
+
+## Поведінковий аналіз
+
+4 класи, налаштовуються через `ProcessConfig`:
+- **foraging** — висока швидкість
+- **fanning** — дуже повільно, довго
+- **guarding** — середня швидкість, горизонтальний рух
+- **washboarding** — все інше
+
+Пороги: `behavior_foraging_speed_min`, `behavior_fanning_speed_max`, тощо.

@@ -5,7 +5,7 @@ import os
 import json
 from datetime import datetime
 from schemas.schemas import ProcessConfig, VizConfig, JobCreateResponse
-from services.video_processor import process_video
+from services.video_processor import process_video, request_cancel
 from db.mongodb import get_db
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
@@ -44,7 +44,8 @@ async def create_job(
         "viz_config": v_cfg,
         "live_stats": {},
         "result": None,
-        "error": None
+        "error": None,
+        "input_path": file_path,
     }
     await db["jobs"].insert_one(job_doc)
 
@@ -97,10 +98,11 @@ async def create_test_job(
         "viz_config": request.viz_config.model_dump(),
         "live_stats": {},
         "result": None,
-        "error": None
+        "error": None,
+        "input_path": file_path,
     }
     await db["jobs"].insert_one(job_doc)
-    
+
     background_tasks.add_task(process_video, job_id, file_path, request.config.model_dump(), request.viz_config.model_dump())
     
     return {"job_id": job_id, "status": "pending"}
@@ -121,23 +123,22 @@ async def delete_job(job_id: str):
     job = await db["jobs"].find_one({"job_id": job_id})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-        
+
+    # Signal running processor to stop (no-op if job is not active)
+    request_cancel(job_id)
+
     await db["jobs"].delete_one({"job_id": job_id})
-    
-    import os
+
     from config import settings
     output_dir = Path(settings.OUTPUT_DIR)
-    
-    raw_file = output_dir / f"{job_id}_raw.mp4"
-    processed_file = output_dir / f"{job_id}.mp4"
-    
-    if raw_file.exists():
-        try: os.remove(raw_file)
-        except Exception: pass
-    if processed_file.exists():
-        try: os.remove(processed_file)
-        except Exception: pass
-        
+
+    for fname in [f"{job_id}_raw.mp4", f"{job_id}.mp4"]:
+        (output_dir / fname).unlink(missing_ok=True)
+
+    input_path = job.get("input_path")
+    if input_path:
+        Path(input_path).unlink(missing_ok=True)
+
     return {"status": "deleted"}
 
 @router.get("/{job_id}/live")

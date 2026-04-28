@@ -54,6 +54,17 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 app.include_router(jobs.router)
 app.include_router(analytics.router)
 
+@app.get("/models")
+async def list_models():
+    models_dir = BASE_DIR / "data" / "models"
+    if not models_dir.exists():
+        return []
+    return [
+        {"name": d.name}
+        for d in sorted(models_dir.iterdir())
+        if d.is_dir() and (d / "best.pt").exists()
+    ]
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

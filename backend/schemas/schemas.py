@@ -11,6 +11,14 @@ class ProcessConfig(BaseModel):
     track_tail_length: int = 30
     angle_threshold_deg: float = 60.0
     ramp_detect_interval: int = 30
+    model_name: Optional[str] = None  # None = default bee_pose model
+    # Behavior thresholds (configurable, passed to HeuristicBehaviorStrategy)
+    behavior_foraging_speed_min: float = 100.0
+    behavior_fanning_speed_max: float = 15.0
+    behavior_fanning_duration_min: float = 2.0
+    behavior_guarding_speed_min: float = 15.0
+    behavior_guarding_speed_max: float = 80.0
+    behavior_guarding_spread_ratio: float = 1.5
 
 class VizConfig(BaseModel):
     show_boxes: bool = True
