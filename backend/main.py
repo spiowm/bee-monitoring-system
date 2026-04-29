@@ -75,7 +75,11 @@ async def list_models():
 # Must be registered AFTER all API routes so API paths take priority.
 from fastapi.responses import FileResponse as _FileResponse
 
-_frontend_dist = BASE_DIR.parent / "frontend" / "dist"
+# Docker: COPY backend/ → /app/, frontend/dist → /app/frontend/dist (BASE_DIR/frontend/dist)
+# Local dev: frontend is at project_root/frontend/dist (BASE_DIR.parent/frontend/dist)
+_frontend_dist = BASE_DIR / "frontend" / "dist"
+if not _frontend_dist.exists():
+    _frontend_dist = BASE_DIR.parent / "frontend" / "dist"
 
 if (_frontend_dist / "assets").exists():
     app.mount(

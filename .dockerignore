@@ -17,14 +17,14 @@ backend/.venv
 **/.env
 **/.env.*
 
-# Large video files — mounted via volume
+# Large files — mounted via volume at runtime
+backend/data/models/
 backend/data/videos/uploads/
 backend/data/videos/processed/
 
 # Research — not needed in production image
 research/
 _context/
-scripts/
 
 # Docs
 *.md
