@@ -184,8 +184,8 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
         finally:
             stop_event.set()
             write_q.put(None)           # signal writer to drain and exit
-            reader.join(timeout=5.0)
-            writer.join(timeout=20.0)   # wait for all writes to flush
+            reader.join(timeout=10.0)
+            writer.join(timeout=120.0)   # wait for all writes to flush
 
     except Exception as e:
         logger.error(f"Job {job_id} failed: {e}", exc_info=True)
@@ -207,24 +207,31 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
         Path(video_path).unlink(missing_ok=True)
         return  # DB record already deleted by DELETE endpoint
 
-    # Run FFmpeg in thread pool so the event loop stays responsive to other requests
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, convert_to_h264, raw_output_path, final_output_path)
+    try:
+        # Run FFmpeg in thread pool so the event loop stays responsive to other requests
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, convert_to_h264, raw_output_path, final_output_path)
 
-    duration = time.time() - start_time
-    result = pipeline.get_result(frame_num, duration)
-    result["annotated_video_url"] = f"/static/output/{job_id}.mp4"
+        duration = time.time() - start_time
+        result = pipeline.get_result(frame_num, duration)
+        result["annotated_video_url"] = f"/static/output/{job_id}.mp4"
 
-    logger.info(
-        f"Job {job_id} done: {frame_num} frames / {duration:.1f}s = "
-        f"{result['fps_processed']:.1f} fps processed"
-    )
+        logger.info(
+            f"Job {job_id} done: {frame_num} frames / {duration:.1f}s = "
+            f"{result['fps_processed']:.1f} fps processed"
+        )
 
-    await db["jobs"].update_one(
-        {"job_id": job_id},
-        {"$set": {
-            "status": "complete",
-            "progress": 1.0,
-            "result": result,
-        }},
-    )
+        await db["jobs"].update_one(
+            {"job_id": job_id},
+            {"$set": {
+                "status": "complete",
+                "progress": 1.0,
+                "result": result,
+            }},
+        )
+    except Exception as e:
+        logger.error(f"Job {job_id} failed during finalization: {e}", exc_info=True)
+        await db["jobs"].update_one(
+            {"job_id": job_id},
+            {"$set": {"status": "failed", "error": str(e)}},
+        )
