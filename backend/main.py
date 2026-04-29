@@ -54,6 +54,10 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 app.include_router(jobs.router)
 app.include_router(analytics.router)
 
+@app.get("/health", include_in_schema=False)
+async def health():
+    return {"status": "ok"}
+
 @app.get("/models")
 async def list_models():
     models_dir = BASE_DIR / "data" / "models"
@@ -64,6 +68,30 @@ async def list_models():
         for d in sorted(models_dir.iterdir())
         if d.is_dir() and (d / "best.pt").exists()
     ]
+
+# ── Serve built React frontend (single-origin Docker / Lightning AI) ────────
+# Only active when frontend/dist/ exists (i.e. after `npm run build`).
+# Falls back gracefully: if dist is missing, only the API is served.
+# Must be registered AFTER all API routes so API paths take priority.
+from fastapi.responses import FileResponse as _FileResponse
+
+_frontend_dist = BASE_DIR.parent / "frontend" / "dist"
+
+if (_frontend_dist / "assets").exists():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=str(_frontend_dist / "assets")),
+        name="fe-assets",
+    )
+
+@app.get("/{_path:path}", include_in_schema=False)
+async def _spa(_path: str):
+    index = _frontend_dist / "index.html"
+    if index.exists():
+        return _FileResponse(str(index))
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Frontend not built — run: npm run build")
+
 
 if __name__ == "__main__":
     import uvicorn

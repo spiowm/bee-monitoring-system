@@ -6,7 +6,9 @@ import App from './App.tsx'
 import './index.css'
 
 client.setConfig({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  // VITE_API_URL set explicitly → use it (local dev or Kaggle two-tunnel)
+  // VITE_API_URL="" (Docker / Lightning) → use current origin (same-origin serving)
+  baseURL: import.meta.env.VITE_API_URL || window.location.origin,
 });
 
 const queryClient = new QueryClient();

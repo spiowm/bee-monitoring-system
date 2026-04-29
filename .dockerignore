@@ -1,0 +1,30 @@
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.ruff_cache
+
+# Frontend build artifacts and deps (rebuilt inside Docker)
+frontend/node_modules
+frontend/dist
+
+# Backend venv (rebuilt inside Docker)
+backend/.venv
+
+# Secrets — never bake into image
+**/.env
+**/.env.*
+
+# Large video files — mounted via volume
+backend/data/videos/uploads/
+backend/data/videos/processed/
+
+# Research — not needed in production image
+research/
+_context/
+scripts/
+
+# Docs
+*.md

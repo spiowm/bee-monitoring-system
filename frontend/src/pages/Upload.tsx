@@ -173,14 +173,14 @@ export default function UploadPage() {
           {job && job.status === 'complete' && job.result && (
             <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
               <div className="bg-black flex-grow flex items-center justify-center relative">
-                 <video src={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${job.result.annotated_video_url}`} controls className="max-h-full max-w-full" />
+                 <video src={`${import.meta.env.VITE_API_URL || window.location.origin}${job.result.annotated_video_url}`} controls className="max-h-full max-w-full" />
               </div>
               <div className="p-4 bg-[var(--bg-panel)] flex justify-between items-center border-t border-gray-800">
                 <div>
                    <span className="font-bold text-[var(--accent)] text-lg">Analysis Complete</span>
                    <p className="text-xs text-gray-400">Processed in {job.result.duration_sec.toFixed(1)}s ({job.result.fps_processed.toFixed(1)} fps)</p>
                 </div>
-                <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${job.result.annotated_video_url}`} download className="flex items-center gap-2 text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition-colors">
+                <a href={`${import.meta.env.VITE_API_URL || window.location.origin}${job.result.annotated_video_url}`} download className="flex items-center gap-2 text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition-colors">
                   <Download size={16} /> Download Video
                 </a>
               </div>
