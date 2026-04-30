@@ -13,7 +13,14 @@ class TrackerFactory:
     def create(name: str, **kwargs):
         name = name.lower()
         if name == "bytetrack":
-            return sv.ByteTrack(**kwargs)
+            defaults = dict(
+                track_activation_threshold=0.2,
+                lost_track_buffer=30,
+                minimum_matching_threshold=0.5,
+                minimum_consecutive_frames=1,
+            )
+            defaults.update(kwargs)
+            return sv.ByteTrack(**defaults)
         elif name == "ocsort":
             if hasattr(sv, "OCSORT"):
                 return sv.OCSORT(**kwargs)

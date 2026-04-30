@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { CompareApproachesAnalyticsCompareApproachesGetData, CompareApproachesAnalyticsCompareApproachesGetResponses, CreateJobJobsPostData, CreateJobJobsPostErrors, CreateJobJobsPostResponses, CreateTestJobJobsTestPostData, CreateTestJobJobsTestPostErrors, CreateTestJobJobsTestPostResponses, DeleteJobJobsJobIdDeleteData, DeleteJobJobsJobIdDeleteErrors, DeleteJobJobsJobIdDeleteResponses, GetJobJobsJobIdGetData, GetJobJobsJobIdGetErrors, GetJobJobsJobIdGetResponses, GetJobLiveStatsJobsJobIdLiveGetData, GetJobLiveStatsJobsJobIdLiveGetErrors, GetJobLiveStatsJobsJobIdLiveGetResponses, GetSummaryAnalyticsSummaryGetData, GetSummaryAnalyticsSummaryGetResponses, ListJobsJobsGetData, ListJobsJobsGetResponses, ListTestVideosJobsTestVideosGetData, ListTestVideosJobsTestVideosGetResponses } from './types.gen';
+import type { CompareApproachesAnalyticsCompareApproachesGetData, CompareApproachesAnalyticsCompareApproachesGetResponses, CreateJobJobsPostData, CreateJobJobsPostErrors, CreateJobJobsPostResponses, CreateTestJobJobsTestPostData, CreateTestJobJobsTestPostErrors, CreateTestJobJobsTestPostResponses, DeleteJobJobsJobIdDeleteData, DeleteJobJobsJobIdDeleteErrors, DeleteJobJobsJobIdDeleteResponses, GetJobJobsJobIdGetData, GetJobJobsJobIdGetErrors, GetJobJobsJobIdGetResponses, GetJobLiveStatsJobsJobIdLiveGetData, GetJobLiveStatsJobsJobIdLiveGetErrors, GetJobLiveStatsJobsJobIdLiveGetResponses, GetSummaryAnalyticsSummaryGetData, GetSummaryAnalyticsSummaryGetResponses, ListJobsJobsGetData, ListJobsJobsGetResponses, ListModelsModelsGetData, ListModelsModelsGetResponses, ListTestVideosJobsTestVideosGetData, ListTestVideosJobsTestVideosGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -105,5 +105,14 @@ export const getSummaryAnalyticsSummaryGet = <ThrowOnError extends boolean = fal
 export const compareApproachesAnalyticsCompareApproachesGet = <ThrowOnError extends boolean = false>(options?: Options<CompareApproachesAnalyticsCompareApproachesGetData, ThrowOnError>) => (options?.client ?? client).get<CompareApproachesAnalyticsCompareApproachesGetResponses, unknown, ThrowOnError>({
     responseType: 'json',
     url: '/analytics/compare-approaches',
+    ...options
+});
+
+/**
+ * List Models
+ */
+export const listModelsModelsGet = <ThrowOnError extends boolean = false>(options?: Options<ListModelsModelsGetData, ThrowOnError>) => (options?.client ?? client).get<ListModelsModelsGetResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    url: '/models',
     ...options
 });

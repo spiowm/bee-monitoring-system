@@ -20,10 +20,12 @@ _model_lock = asyncio.Lock()
 _cancel_flags: dict[str, asyncio.Event] = {}
 
 _DEVICE = 0 if torch.cuda.is_available() else "cpu"
-_HALF = isinstance(_DEVICE, int)
-_BATCH_SIZE = 16       # frames per GPU call — larger batch → better GPU utilisation
 _READ_AHEAD = 3        # read-queue depth in batches
 _WRITE_AHEAD = 32      # write-queue depth in frames
+
+# Reasonable default batch sizes for different VRAM tiers, used when ProcessConfig.batch_size is None.
+_DEFAULT_BATCH_FP32 = 2
+_DEFAULT_BATCH_FP16 = 4
 
 
 def _resolve_model_path(model_name: str = None) -> str:
@@ -35,13 +37,76 @@ def _resolve_model_path(model_name: str = None) -> str:
     return settings.MODEL_PATH
 
 
+def _extract_metadata(model: YOLO) -> dict:
+    """Read training metadata from the YOLO checkpoint so the backend can use the
+    same imgsz/half the model was trained with by default. Falls back to safe
+    defaults if the .pt has no train_args."""
+    train_args = (getattr(model, "ckpt", None) or {}).get("train_args", {}) or {}
+    arch = train_args.get("model")  # e.g. 'yolo11s-pose.pt'
+    variant = None
+    if isinstance(arch, str):
+        # Best-effort parse: 'yolo11s-pose.pt' -> 's'
+        stem = Path(arch).stem  # 'yolo11s-pose'
+        for ch in ("n", "s", "m", "l", "x"):
+            token = f"yolo11{ch}"
+            if stem.startswith(token):
+                variant = ch
+                break
+    return {
+        "arch": arch,
+        "variant": variant,
+        "task": train_args.get("task") or getattr(model, "task", None),
+        "imgsz": train_args.get("imgsz") or 640,
+        "trained_with_half": bool(train_args.get("half", False)),
+    }
+
+
 async def get_bee_model(model_name: str = None) -> YOLO:
     model_path = _resolve_model_path(model_name)
     async with _model_lock:
         if model_path not in _bee_models:
-            logger.info(f"Loading model from {model_path} (device={_DEVICE}, half={_HALF})...")
-            _bee_models[model_path] = YOLO(model_path)
+            logger.info(f"Loading model from {model_path} (device={_DEVICE})...")
+            model = YOLO(model_path)
+            meta = _extract_metadata(model)
+            model.bee_meta = meta  # stash for callers
+            logger.info(
+                f"[Model {Path(model_path).parent.name}] arch={meta['arch']} "
+                f"variant={meta['variant']} task={meta['task']} imgsz={meta['imgsz']} "
+                f"trained_with_half={meta['trained_with_half']}"
+            )
+            _bee_models[model_path] = model
         return _bee_models[model_path]
+
+
+def get_model_metadata(model_name: str = None) -> dict | None:
+    """Return cached metadata for an already-loaded model, or None if not loaded."""
+    model_path = _resolve_model_path(model_name)
+    model = _bee_models.get(model_path)
+    if model is None:
+        return None
+    return getattr(model, "bee_meta", None)
+
+
+def list_available_models() -> list[dict]:
+    """List models on disk with metadata (loads each .pt once to read train_args)."""
+    models_dir = Path(settings.MODEL_PATH).parent.parent
+    if not models_dir.exists():
+        return []
+    out: list[dict] = []
+    for d in sorted(models_dir.iterdir()):
+        if not (d.is_dir() and (d / "best.pt").exists()):
+            continue
+        cached = _bee_models.get(str(d / "best.pt"))
+        if cached is not None:
+            meta = getattr(cached, "bee_meta", None) or _extract_metadata(cached)
+        else:
+            try:
+                meta = _extract_metadata(YOLO(str(d / "best.pt")))
+            except Exception as exc:
+                logger.warning(f"Could not read metadata for model {d.name}: {exc}")
+                meta = {"arch": None, "variant": None, "task": None, "imgsz": None, "trained_with_half": False}
+        out.append({"name": d.name, **meta})
+    return out
 
 
 def request_cancel(job_id: str) -> None:
@@ -126,6 +191,23 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
         out = cv2.VideoWriter(raw_output_path, fourcc, fps, (width, height))
 
         conf = config.get("conf_threshold", 0.35)
+        iou = config.get("iou_threshold", 0.8)
+        max_det = config.get("max_detections", 1000)
+
+        # Resolve imgsz / half / batch_size: prefer explicit config, otherwise pull
+        # from the model's training metadata so inference matches training conditions.
+        meta = getattr(bee_model, "bee_meta", None) or {}
+        imgsz = config.get("imgsz") or meta.get("imgsz") or 640
+        half = bool(config.get("half_precision", False)) and isinstance(_DEVICE, int)
+        batch_size = config.get("batch_size") or (
+            _DEFAULT_BATCH_FP16 if half else _DEFAULT_BATCH_FP32
+        )
+
+        logger.info(
+            f"Job {job_id} inference: imgsz={imgsz} half={half} batch={batch_size} "
+            f"conf={conf} iou={iou} max_det={max_det} device={_DEVICE}"
+        )
+
         start_time = time.time()
         last_db_update = time.time()
         frame_num = 0
@@ -136,7 +218,7 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
         write_q: queue.Queue = queue.Queue(maxsize=_WRITE_AHEAD)
 
         reader = threading.Thread(
-            target=_reader_worker, args=(cap, read_q, _BATCH_SIZE, stop_event), daemon=True
+            target=_reader_worker, args=(cap, read_q, batch_size, stop_event), daemon=True
         )
         writer = threading.Thread(
             target=_writer_worker, args=(out, write_q), daemon=True
@@ -161,7 +243,8 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
                 batch_start = time.time()
                 raw_frames = [f for _, f in batch]
                 batch_results = bee_model(
-                    raw_frames, verbose=False, conf=conf, device=_DEVICE, half=_HALF
+                    raw_frames, verbose=False, conf=conf, iou=iou, max_det=max_det,
+                    imgsz=imgsz, device=_DEVICE, half=half,
                 )
 
                 for (fn, frame), detection in zip(batch, batch_results):

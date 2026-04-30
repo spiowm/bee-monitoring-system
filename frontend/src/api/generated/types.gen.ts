@@ -47,6 +47,36 @@ export type JobCreateResponse = {
 };
 
 /**
+ * ModelInfo
+ */
+export type ModelInfo = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Arch
+     */
+    arch?: string | null;
+    /**
+     * Variant
+     */
+    variant?: string | null;
+    /**
+     * Task
+     */
+    task?: string | null;
+    /**
+     * Imgsz
+     */
+    imgsz?: number | null;
+    /**
+     * Trained With Half
+     */
+    trained_with_half?: boolean;
+};
+
+/**
  * ProcessConfig
  */
 export type ProcessConfig = {
@@ -67,6 +97,26 @@ export type ProcessConfig = {
      */
     conf_threshold?: number;
     /**
+     * Iou Threshold
+     */
+    iou_threshold?: number;
+    /**
+     * Max Detections
+     */
+    max_detections?: number;
+    /**
+     * Imgsz
+     */
+    imgsz?: number | null;
+    /**
+     * Half Precision
+     */
+    half_precision?: boolean;
+    /**
+     * Batch Size
+     */
+    batch_size?: number | null;
+    /**
      * Kp Conf Threshold
      */
     kp_conf_threshold?: number;
@@ -82,6 +132,34 @@ export type ProcessConfig = {
      * Ramp Detect Interval
      */
     ramp_detect_interval?: number;
+    /**
+     * Model Name
+     */
+    model_name?: string | null;
+    /**
+     * Behavior Foraging Speed Min
+     */
+    behavior_foraging_speed_min?: number;
+    /**
+     * Behavior Fanning Speed Max
+     */
+    behavior_fanning_speed_max?: number;
+    /**
+     * Behavior Fanning Duration Min
+     */
+    behavior_fanning_duration_min?: number;
+    /**
+     * Behavior Guarding Speed Min
+     */
+    behavior_guarding_speed_min?: number;
+    /**
+     * Behavior Guarding Speed Max
+     */
+    behavior_guarding_speed_max?: number;
+    /**
+     * Behavior Guarding Spread Ratio
+     */
+    behavior_guarding_spread_ratio?: number;
 };
 
 /**
@@ -363,3 +441,21 @@ export type CompareApproachesAnalyticsCompareApproachesGetResponses = {
      */
     200: unknown;
 };
+
+export type ListModelsModelsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/models';
+};
+
+export type ListModelsModelsGetResponses = {
+    /**
+     * Response List Models Models Get
+     *
+     * Successful Response
+     */
+    200: Array<ModelInfo>;
+};
+
+export type ListModelsModelsGetResponse = ListModelsModelsGetResponses[keyof ListModelsModelsGetResponses];

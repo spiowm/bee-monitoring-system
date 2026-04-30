@@ -13,7 +13,7 @@ class FrameAnnotator:
     def __init__(self, viz_config: dict):
         self.viz_config = viz_config
 
-    def annotate(self, frame, tracked_detections, ramp_bbox, keypoints_xy,
+    def annotate(self, frame, tracked_detections, ramp_bbox, ramp_kpts, keypoints_xy,
                  behaviors, counter, events, stats_state, history: TrackHistory):
         annotated_frame = frame.copy()
         h, w = frame.shape[:2]
@@ -21,23 +21,51 @@ class FrameAnnotator:
 
         # 1. RAMP OVERLAY
         if self.viz_config.get("show_ramp", True) and ramp_bbox is not None:
-            rx1, ry1, rx2, ry2 = [int(v) for v in ramp_bbox]
             overlay = annotated_frame.copy()
-            cv2.rectangle(overlay, (rx1, ry1), (rx2, ry2), (41, 180, 240), -1)
-            cv2.addWeighted(overlay, 0.15, annotated_frame, 0.85, 0, annotated_frame)
-            cv2.rectangle(annotated_frame, (rx1, ry1), (rx2, ry2), (41, 180, 240), 2)
-            cv2.putText(annotated_frame, "RAMP", (rx1 + 5, ry1 + 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (41, 180, 240), 2)
+            if ramp_kpts is not None and len(ramp_kpts) >= 4:
+                pts = np.array(ramp_kpts[:4], np.int32)
+                pts = pts.reshape((-1, 1, 2))
+                cv2.fillPoly(overlay, [pts], (41, 180, 240))
+                cv2.addWeighted(overlay, 0.15, annotated_frame, 0.85, 0, annotated_frame)
+                cv2.polylines(annotated_frame, [pts], True, (41, 180, 240), 2)
+                
+                # Annotate points for clarity
+                for idx, pt in enumerate(ramp_kpts[:4]):
+                    cv2.putText(annotated_frame, str(idx+1), (int(pt[0]), int(pt[1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                
+                rx1, ry1 = int(ramp_bbox[0]), int(ramp_bbox[1])
+                cv2.putText(annotated_frame, "RAMP", (rx1 + 5, ry1 + 20),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (41, 180, 240), 2)
+            else:
+                rx1, ry1, rx2, ry2 = [int(v) for v in ramp_bbox]
+                cv2.rectangle(overlay, (rx1, ry1), (rx2, ry2), (41, 180, 240), -1)
+                cv2.addWeighted(overlay, 0.15, annotated_frame, 0.85, 0, annotated_frame)
+                cv2.rectangle(annotated_frame, (rx1, ry1), (rx2, ry2), (41, 180, 240), 2)
+                cv2.putText(annotated_frame, "RAMP", (rx1 + 5, ry1 + 20),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (41, 180, 240), 2)
 
         # 2. COUNTING LINE
         if self.viz_config.get("show_counting_line", True) and ramp_bbox is not None:
-            line_y = int(counter.get_line_y(ramp_bbox))
-            rx1, ry1, rx2, ry2 = [int(v) for v in ramp_bbox]
-            cv2.line(annotated_frame, (rx1, line_y), (rx2, line_y), (120, 187, 72), 2)
-            cv2.putText(annotated_frame, "IN ^", (rx1 + 5, line_y - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (120, 187, 72), 2)
-            cv2.putText(annotated_frame, "OUT v", (rx2 - 50, line_y + 15),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (129, 129, 252), 2)
+            if ramp_kpts is not None and len(ramp_kpts) >= 2:
+                x1, y1 = int(ramp_kpts[0][0]), int(ramp_kpts[0][1])
+                x2, y2 = int(ramp_kpts[1][0]), int(ramp_kpts[1][1])
+                shift_down = 8
+                y1 += shift_down
+                y2 += shift_down
+                cv2.line(annotated_frame, (x1, y1), (x2, y2), (120, 187, 72), 2)
+                cv2.putText(annotated_frame, "IN ^", (x1 + 5, y1 - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (120, 187, 72), 2)
+                cv2.putText(annotated_frame, "OUT v", (x2 - 50, y2 + 15),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (129, 129, 252), 2)
+            else:
+                rx1, ry1, rx2, ry2 = [int(v) for v in ramp_bbox]
+                # Default fallback line if no keypoints
+                line_y = int(ry1 + 0.5 * (ry2 - ry1))
+                cv2.line(annotated_frame, (rx1, line_y), (rx2, line_y), (120, 187, 72), 2)
+                cv2.putText(annotated_frame, "IN ^", (rx1 + 5, line_y - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (120, 187, 72), 2)
+                cv2.putText(annotated_frame, "OUT v", (rx2 - 50, line_y + 15),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (129, 129, 252), 2)
 
         # 3–8. Per-detection overlays
         if tracked_detections.tracker_id is not None:

@@ -1,6 +1,9 @@
 from services.orientation import get_orientation_vector, should_count_crossing
 from services.track_history import TrackHistory
+import logging
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class TrafficCounter:
@@ -15,19 +18,32 @@ class TrafficCounter:
         # track_id → last counted frame (debounce)
         self.track_counted: dict[int, int] = {}
 
-    def get_line_y(self, ramp_bbox):
+    def get_line_y(self, cx, ramp_bbox, ramp_kpts):
+        if ramp_kpts is not None and len(ramp_kpts) >= 2:
+            x1, y1 = ramp_kpts[0][:2]
+            x2, y2 = ramp_kpts[1][:2]
+            shift_down = 8 # a few pixels down
+            if abs(x2 - x1) > 1e-3:
+                return y1 + (y2 - y1) / (x2 - x1) * (cx - x1) + shift_down
+            else:
+                return y1 + shift_down
+                
         if ramp_bbox is None:
             return None
         rx1, ry1, rx2, ry2 = ramp_bbox
         return ry1 + self.line_position * (ry2 - ry1)
 
-    def update(self, frame_num, tracked_detections, ramp_bbox, keypoints_xy,
+    def update(self, frame_num, tracked_detections, ramp_bbox, ramp_kpts, keypoints_xy,
                history: TrackHistory, behaviors=None, fps=30.0):
         events = []
-        line_y = self.get_line_y(ramp_bbox)
-
-        if line_y is None or tracked_detections.tracker_id is None:
+        if tracked_detections.tracker_id is None:
             return events
+
+        if frame_num == 1:
+            logger.info(
+                f"[Counter frame=1] ramp_kpts={ramp_kpts}, ramp_bbox={ramp_bbox}, "
+                f"tracked_count={len(tracked_detections.tracker_id)}"
+            )
 
         for i, track_id in enumerate(tracked_detections.tracker_id):
             entry = history.get(track_id)
@@ -40,8 +56,15 @@ class TrafficCounter:
                     continue
 
             positions = entry.last_n_positions(5)
-            prev_y = positions[-2][1]
-            curr_y = positions[-1][1]
+            prev_pos = positions[-2]
+            curr_pos = positions[-1]
+            prev_y = prev_pos[1]
+            curr_y = curr_pos[1]
+            curr_x = curr_pos[0]
+            
+            line_y = self.get_line_y(curr_x, ramp_bbox, ramp_kpts)
+            if line_y is None:
+                continue
 
             if not ((prev_y < line_y and curr_y >= line_y) or
                     (prev_y > line_y and curr_y <= line_y)):

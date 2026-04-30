@@ -39,23 +39,30 @@ class RampDetector:
             self.model = None
             
         self.cached_bbox = None
+        self.cached_keypoints = None
         self.frames_since_detect = settings.RAMP_DETECT_INTERVAL
         self._initialized = True
 
     def detect(self, frame):
         if self.model is None:
-            return None
+            return None, None
             
         self.frames_since_detect += 1
         
         if self.frames_since_detect >= settings.RAMP_DETECT_INTERVAL:
-            results = self.model(frame, verbose=False, device=_DEVICE, half=_HALF)
+            # Запускаємо модель рампи на CPU, щоб уникнути конфліктів VRAM з моделлю бджіл (яка працює на GPU)
+            results = self.model(frame, verbose=False, device='cpu')
             if results and len(results[0].boxes) > 0:
                 box = results[0].boxes[0].xyxy[0].cpu().numpy()
                 self.cached_bbox = [float(box[0]), float(box[1]), float(box[2]), float(box[3])]
+                
+                if hasattr(results[0], 'keypoints') and results[0].keypoints is not None:
+                    if len(results[0].keypoints.xy) > 0:
+                        self.cached_keypoints = results[0].keypoints.xy[0].cpu().numpy().tolist()
+                        
             self.frames_since_detect = 0
             
-        return self.cached_bbox
+        return self.cached_bbox, self.cached_keypoints
         
     @staticmethod
     def is_in_ramp(bbox_bee, ramp_bbox, padding=10.0):

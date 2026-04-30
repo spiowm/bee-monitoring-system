@@ -24,13 +24,19 @@ async def create_job(
         raise HTTPException(status_code=400, detail="Invalid JSON in config or viz_config")
 
     from config import BASE_DIR
+    import hashlib
+
     job_id = str(uuid.uuid4())
     upload_dir = str(BASE_DIR / "data" / "videos" / "uploads")
     os.makedirs(upload_dir, exist_ok=True)
     
-    file_path = f"{upload_dir}/{job_id}_{video.filename}"
-    with open(file_path, "wb") as f:
-        f.write(await video.read())
+    content = await video.read()
+    file_hash = hashlib.md5(content).hexdigest()
+    
+    file_path = f"{upload_dir}/{file_hash}_{video.filename}"
+    if not os.path.exists(file_path):
+        with open(file_path, "wb") as f:
+            f.write(content)
 
     db = get_db()
     
@@ -80,11 +86,7 @@ async def create_test_job(
         raise HTTPException(status_code=404, detail="Test video not found")
         
     job_id = str(uuid.uuid4())
-    upload_dir = str(BASE_DIR / "data" / "videos" / "uploads")
-    os.makedirs(upload_dir, exist_ok=True)
-    
-    file_path = f"{upload_dir}/{job_id}_{request.filename}"
-    shutil.copy2(source_path, file_path)
+    file_path = str(source_path)
     
     db = get_db()
     
@@ -136,8 +138,11 @@ async def delete_job(job_id: str):
         (output_dir / fname).unlink(missing_ok=True)
 
     input_path = job.get("input_path")
-    if input_path:
-        Path(input_path).unlink(missing_ok=True)
+    if input_path and "uploads" in input_path:
+        # Delete the file only if no other job is using it
+        other_jobs = await db["jobs"].count_documents({"input_path": input_path, "job_id": {"$ne": job_id}})
+        if other_jobs == 0:
+            Path(input_path).unlink(missing_ok=True)
 
     return {"status": "deleted"}
 

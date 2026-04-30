@@ -1,11 +1,14 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+import logging
 import numpy as np
 import supervision as sv
 import torch
 
 _DEVICE = 0 if torch.cuda.is_available() else "cpu"
 _HALF = isinstance(_DEVICE, int)
+
+logger = logging.getLogger(__name__)
 
 from services.ramp_detector import RampDetector
 from services.track_history import TrackHistory
@@ -21,6 +24,7 @@ class FrameContext:
 
     detection_result: object = None  # pre-computed YOLO result (batch mode)
     ramp_bbox: tuple = None
+    ramp_kpts: list = None
     detections: sv.Detections = None
     filtered_boxes: list = field(default_factory=list)
     filtered_kpts: list = field(default_factory=list)
@@ -43,31 +47,41 @@ class DetectionStage(PipelineStage):
         self.ramp_detector = RampDetector()
 
     def process(self, ctx: FrameContext, state: dict):
-        ctx.ramp_bbox = self.ramp_detector.detect(ctx.frame)
+        ctx.ramp_bbox, ctx.ramp_kpts = self.ramp_detector.detect(ctx.frame)
 
         if ctx.detection_result is not None:
             results = [ctx.detection_result]
         else:
+            meta = getattr(self.bee_model, "bee_meta", None) or {}
+            imgsz = self.config.get("imgsz") or meta.get("imgsz") or 640
             results = self.bee_model(
                 ctx.frame, verbose=False,
                 conf=self.config.get("conf_threshold", 0.35),
-                device=_DEVICE, half=_HALF,
+                iou=self.config.get("iou_threshold", 0.8),
+                max_det=self.config.get("max_detections", 1000),
+                imgsz=imgsz,
+                device=_DEVICE,
+                half=bool(self.config.get("half_precision", False)) and isinstance(_DEVICE, int),
             )
 
+        n_raw = 0
         if results and len(results[0].boxes) > 0:
             boxes   = results[0].boxes.xyxy.cpu().numpy()
             confs   = results[0].boxes.conf.cpu().numpy()
             cls_ids = results[0].boxes.cls.cpu().numpy()
             kpts    = results[0].keypoints.xy.cpu().numpy() if results[0].keypoints is not None else None
+            n_raw = len(boxes)
 
-            # Vectorized centroid-in-ramp filter
+            cx = (boxes[:, 0] + boxes[:, 2]) * 0.5
+            cy = (boxes[:, 1] + boxes[:, 3]) * 0.5
+            valid = np.isfinite(cx) & np.isfinite(cy)
             if ctx.ramp_bbox is not None:
                 rx1, ry1, rx2, ry2 = ctx.ramp_bbox
-                cx = (boxes[:, 0] + boxes[:, 2]) * 0.5
-                cy = (boxes[:, 1] + boxes[:, 3]) * 0.5
-                mask = (cx >= rx1 - 10) & (cx <= rx2 + 10) & (cy >= ry1 - 10) & (cy <= ry2 + 10)
+                # Extend top boundary upward so bees near/above the counting line
+                # (which sits at the top edge of the ramp bbox) are not excluded.
+                mask = valid & (cx >= rx1 - 30) & (cx <= rx2 + 30) & (cy >= ry1 - 120) & (cy <= ry2 + 30)
             else:
-                mask = np.ones(len(boxes), dtype=bool)
+                mask = valid
 
             boxes_f   = boxes[mask]
             confs_f   = confs[mask]
@@ -82,11 +96,28 @@ class DetectionStage(PipelineStage):
                 )
                 ctx.filtered_boxes = boxes_f
                 ctx.filtered_kpts  = kpts_f
+                if ctx.frame_num <= 3:
+                    n_nan = int((~valid).sum())
+                    cap = self.config.get("max_detections", 1000)
+                    cap_hit = " [CAP HIT]" if n_raw >= cap else ""
+                    cx_v, cy_v = cx[valid], cy[valid]
+                    logger.info(
+                        f"[Detection frame={ctx.frame_num}] yolo_raw={n_raw}{cap_hit} nan_boxes={n_nan} "
+                        f"after_polygon={len(boxes_f)} "
+                        f"conf_min={confs_f.min():.3f} conf_max={confs_f.max():.3f} conf_p50={np.median(confs_f):.3f} "
+                        f"cx_range=[{cx_v.min():.0f},{cx_v.max():.0f}] cy_range=[{cy_v.min():.0f},{cy_v.max():.0f}] "
+                        f"ramp_bbox={ctx.ramp_bbox}"
+                    )
                 return
 
         ctx.detections    = sv.Detections.empty()
         ctx.filtered_boxes = []
         ctx.filtered_kpts  = []
+        if ctx.frame_num == 1:
+            logger.info(
+                f"[Detection frame=1] yolo_raw={n_raw} after_polygon=0 "
+                f"(all filtered or no detections)"
+            )
 
 
 class TrackingStage(PipelineStage):
@@ -107,10 +138,14 @@ class TrackingStage(PipelineStage):
 
     def process(self, ctx: FrameContext, state: dict):
         ctx.tracked_detections = self.tracker.update_with_detections(ctx.detections)
-        state["active_bees"] = (
+        n_tracked = (
             len(ctx.tracked_detections.tracker_id)
             if ctx.tracked_detections.tracker_id is not None else 0
         )
+        state["active_bees"] = n_tracked
+        if ctx.frame_num <= 3:
+            n_det = len(ctx.detections.xyxy) if ctx.detections is not None else 0
+            logger.info(f"[Tracking frame={ctx.frame_num}] detections_in={n_det} tracked_out={n_tracked}")
 
         mapped: list = []
         if (ctx.filtered_kpts
@@ -162,7 +197,7 @@ class CountingStage(PipelineStage):
         
     def process(self, ctx: FrameContext, state: dict):
         events = self.counter.update(
-            ctx.frame_num, ctx.tracked_detections, ctx.ramp_bbox, ctx.mapped_kpts,
+            ctx.frame_num, ctx.tracked_detections, ctx.ramp_bbox, ctx.ramp_kpts, ctx.mapped_kpts,
             state["history"], state["current_behaviors"], ctx.fps,
         )
         ctx.events = events
@@ -186,6 +221,6 @@ class AnnotationStage(PipelineStage):
             "fps": state["current_fps"],
         }
         ctx.annotated_frame = self.annotator.annotate(
-            ctx.frame, ctx.tracked_detections, ctx.ramp_bbox, ctx.mapped_kpts,
+            ctx.frame, ctx.tracked_detections, ctx.ramp_bbox, ctx.ramp_kpts, ctx.mapped_kpts,
             state["current_behaviors"], self.counter, ctx.events, stats_state, state["history"],
         )

@@ -6,7 +6,12 @@ class ProcessConfig(BaseModel):
     tracker_name: str = "bytetrack"
     approach: str = "A"
     line_position: float = 0.5
-    conf_threshold: float = 0.35
+    conf_threshold: float = 0.20
+    iou_threshold: float = 0.8
+    max_detections: int = 1000
+    imgsz: Optional[int] = None      # None → fall back to model's training imgsz
+    half_precision: bool = False
+    batch_size: Optional[int] = None  # None → 2 (FP32) or 4 (FP16)
     kp_conf_threshold: float = 0.5
     track_tail_length: int = 30
     angle_threshold_deg: float = 60.0
@@ -36,6 +41,14 @@ class VizConfig(BaseModel):
 class JobCreateResponse(BaseModel):
     job_id: str
     status: str
+
+class ModelInfo(BaseModel):
+    name: str
+    arch: Optional[str] = None             # e.g. 'yolo11s-pose.pt'
+    variant: Optional[str] = None          # 'n', 's', 'm', 'l', 'x'
+    task: Optional[str] = None             # 'pose', 'detect', 'segment'
+    imgsz: Optional[int] = None            # native training imgsz
+    trained_with_half: bool = False
 
 class LiveStats(BaseModel):
     current_frame: int = 0

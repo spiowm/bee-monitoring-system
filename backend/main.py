@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from config import settings, BASE_DIR
 from db.mongodb import connect_to_mongo, close_mongo_connection
 from routers import jobs, analytics
-from services.video_processor import get_bee_model
+from services.video_processor import get_bee_model, list_available_models
 from services.ramp_detector import RampDetector
 
 import logging
@@ -58,16 +58,11 @@ app.include_router(analytics.router)
 async def health():
     return {"status": "ok"}
 
-@app.get("/models")
+from schemas.schemas import ModelInfo
+
+@app.get("/models", response_model=list[ModelInfo])
 async def list_models():
-    models_dir = BASE_DIR / "data" / "models"
-    if not models_dir.exists():
-        return []
-    return [
-        {"name": d.name}
-        for d in sorted(models_dir.iterdir())
-        if d.is_dir() and (d / "best.pt").exists()
-    ]
+    return list_available_models()
 
 # ── Serve built React frontend (single-origin Docker / Lightning AI) ────────
 # Only active when frontend/dist/ exists (i.e. after `npm run build`).

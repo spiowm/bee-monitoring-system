@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173"
     MAX_VIDEO_SIZE_MB: int = 500
     OUTPUT_DIR: str = str(BASE_DIR / "data" / "videos" / "processed")
-    RAMP_DETECT_INTERVAL: int = 30  # кадрів між запусками ramp детектора
+    RAMP_DETECT_INTERVAL: int = 60  # кадрів між запусками ramp детектора
 
     class Config:
         env_file = str(BASE_DIR / ".env")

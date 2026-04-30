@@ -4,6 +4,10 @@
 
 ## Запуск
 
+> **Увага:** Для фінальної конвертації відео у формат H.264 (для показу в браузері) на сервері має бути встановлений `ffmpeg`.
+> - Ubuntu/Debian: `sudo apt install ffmpeg`
+> - MacOS: `brew install ffmpeg`
+
 ```bash
 cd backend
 uv sync

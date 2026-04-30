@@ -278,6 +278,28 @@
           }
         }
       }
+    },
+    "/models": {
+      "get": {
+        "summary": "List Models",
+        "operationId": "list_models_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelInfo"
+                  },
+                  "type": "array",
+                  "title": "Response List Models Models Get"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -337,6 +359,68 @@
         ],
         "title": "JobCreateResponse"
       },
+      "ModelInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "arch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arch"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "imgsz": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imgsz"
+          },
+          "trained_with_half": {
+            "type": "boolean",
+            "title": "Trained With Half",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ModelInfo"
+      },
       "ProcessConfig": {
         "properties": {
           "tracker_name": {
@@ -357,7 +441,44 @@
           "conf_threshold": {
             "type": "number",
             "title": "Conf Threshold",
-            "default": 0.35
+            "default": 0.2
+          },
+          "iou_threshold": {
+            "type": "number",
+            "title": "Iou Threshold",
+            "default": 0.8
+          },
+          "max_detections": {
+            "type": "integer",
+            "title": "Max Detections",
+            "default": 1000
+          },
+          "imgsz": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imgsz"
+          },
+          "half_precision": {
+            "type": "boolean",
+            "title": "Half Precision",
+            "default": false
+          },
+          "batch_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Size"
           },
           "kp_conf_threshold": {
             "type": "number",
@@ -378,6 +499,47 @@
             "type": "integer",
             "title": "Ramp Detect Interval",
             "default": 30
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "behavior_foraging_speed_min": {
+            "type": "number",
+            "title": "Behavior Foraging Speed Min",
+            "default": 100.0
+          },
+          "behavior_fanning_speed_max": {
+            "type": "number",
+            "title": "Behavior Fanning Speed Max",
+            "default": 15.0
+          },
+          "behavior_fanning_duration_min": {
+            "type": "number",
+            "title": "Behavior Fanning Duration Min",
+            "default": 2.0
+          },
+          "behavior_guarding_speed_min": {
+            "type": "number",
+            "title": "Behavior Guarding Speed Min",
+            "default": 15.0
+          },
+          "behavior_guarding_speed_max": {
+            "type": "number",
+            "title": "Behavior Guarding Speed Max",
+            "default": 80.0
+          },
+          "behavior_guarding_spread_ratio": {
+            "type": "number",
+            "title": "Behavior Guarding Spread Ratio",
+            "default": 1.5
           }
         },
         "type": "object",
