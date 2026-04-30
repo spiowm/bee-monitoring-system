@@ -287,7 +287,8 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
 
     if cancel.is_set():
         Path(raw_output_path).unlink(missing_ok=True)
-        Path(video_path).unlink(missing_ok=True)
+        if "uploads" in video_path:  # never delete test videos from data/videos/test/
+            Path(video_path).unlink(missing_ok=True)
         return  # DB record already deleted by DELETE endpoint
 
     try:

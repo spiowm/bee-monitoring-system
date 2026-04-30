@@ -112,7 +112,7 @@ export default function AnalyticsPage() {
     return (
       <div className="animate-pulse text-center p-12 text-[var(--accent)]">
         <Activity className="mx-auto block" size={48} />
-        <p className="mt-2">Loading Analytics...</p>
+        <p className="mt-2">Завантаження аналітики…</p>
       </div>
     );
   }
@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold border-b border-gray-800 pb-2 flex items-center gap-2">
-        <BarChart2 className="text-[var(--accent)]" /> Analytics & Research
+        <BarChart2 className="text-[var(--accent)]" /> Аналітика і дослідження
       </h1>
 
       {/* Overview Cards */}
@@ -128,28 +128,28 @@ export default function AnalyticsPage() {
         <div className="card flex items-center gap-4">
           <div className="p-3 bg-gray-800 rounded-lg text-gray-300"><Layers size={22} /></div>
           <div>
-            <div className="text-xs text-gray-400">Sessions</div>
+            <div className="text-xs text-gray-400">Сесій</div>
             <div className="text-2xl font-bold">{summary?.total_sessions || 0}</div>
           </div>
         </div>
         <div className="card flex items-center gap-4">
           <div className="p-3 bg-[var(--color-in)]/20 rounded-lg text-[var(--color-in)]"><ActivitySquare size={22} /></div>
           <div>
-            <div className="text-xs text-gray-400">Total IN</div>
+            <div className="text-xs text-gray-400">Всього В</div>
             <div className="text-2xl font-bold text-[var(--color-in)]">{summary?.total_in || 0}</div>
           </div>
         </div>
         <div className="card flex items-center gap-4">
           <div className="p-3 bg-[var(--color-out)]/20 rounded-lg text-[var(--color-out)]"><ActivitySquare size={22} /></div>
           <div>
-            <div className="text-xs text-gray-400">Total OUT</div>
+            <div className="text-xs text-gray-400">Всього З</div>
             <div className="text-2xl font-bold text-[var(--color-out)]">{summary?.total_out || 0}</div>
           </div>
         </div>
         <div className="card flex items-center gap-4">
           <div className="p-3 bg-blue-900/50 rounded-lg text-blue-400"><CheckCircle size={22} /></div>
           <div>
-            <div className="text-xs text-gray-400">Avg Balance</div>
+            <div className="text-xs text-gray-400">Сер. баланс</div>
             <div className="text-2xl font-bold">{(summary?.avg_balance || 0).toFixed(1)}</div>
           </div>
         </div>
@@ -209,24 +209,24 @@ export default function AnalyticsPage() {
       {/* Approach Comparison */}
       <div className="card space-y-4 border border-[var(--accent)] shadow-[0_0_15px_rgba(240,180,41,0.08)]">
         <h2 className="text-base font-bold flex items-center gap-2">
-          <Activity size={18} className="text-[var(--accent)]" /> Approach A vs B
+          <Activity size={18} className="text-[var(--accent)]" /> Метод А проти Б
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-[var(--bg-panel)] p-4 rounded-xl border border-gray-700">
-            <div className="text-xs font-semibold text-gray-400 mb-2 uppercase">Approach A (Trajectory)</div>
+            <div className="text-xs font-semibold text-gray-400 mb-2 uppercase">Метод А (Траєкторія)</div>
             <div className="text-3xl font-bold font-mono">{compare?.avg_in_a?.toFixed(1) || 0}</div>
-            <div className="text-xs text-gray-500 mt-1">avg IN / session ({compare?.approach_a_count || 0} samples)</div>
+            <div className="text-xs text-gray-500 mt-1">сер. В / сесія ({compare?.approach_a_count || 0} зразків)</div>
           </div>
           <div className="bg-[var(--bg-panel)] p-4 rounded-xl border border-[var(--accent)]/50 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-[var(--accent)] text-xs text-black font-bold px-2 py-1 rounded-bl-lg">PROPOSED</div>
-            <div className="text-xs font-semibold text-[var(--accent)] mb-2 uppercase">Approach B (Pose Filter)</div>
+            <div className="absolute top-0 right-0 bg-[var(--accent)] text-xs text-black font-bold px-2 py-1 rounded-bl-lg">ПРОПОНУЄТЬСЯ</div>
+            <div className="text-xs font-semibold text-[var(--accent)] mb-2 uppercase">Метод Б (Фільтр пози)</div>
             <div className="text-3xl font-bold font-mono">{compare?.avg_in_b?.toFixed(1) || 0}</div>
-            <div className="text-xs text-gray-400 mt-1">avg IN / session ({compare?.approach_b_count || 0} samples)</div>
+            <div className="text-xs text-gray-400 mt-1">сер. В / сесія ({compare?.approach_b_count || 0} зразків)</div>
           </div>
           <div className="bg-[var(--bg-panel)] p-4 rounded-xl border border-blue-900/50">
-            <div className="text-xs font-semibold text-blue-400 mb-2 uppercase">Pose Confirmation Rate</div>
+            <div className="text-xs font-semibold text-blue-400 mb-2 uppercase">Рівень підтвердження позою</div>
             <div className="text-3xl font-bold font-mono text-blue-400">{compare?.pose_confirmed_rate?.toFixed(1) || 0}%</div>
-            <div className="text-xs text-gray-500 mt-1">events validated by pose vector</div>
+            <div className="text-xs text-gray-500 mt-1">подій підтверджено вектором пози</div>
           </div>
         </div>
         <div className="bg-gray-800/40 p-3 rounded-lg text-sm text-gray-300 border-l-4 border-[var(--accent)]">
@@ -240,14 +240,14 @@ export default function AnalyticsPage() {
       <div className="card space-y-4">
         <div className="flex items-center justify-between border-b border-gray-800 pb-2">
           <h2 className="text-base font-bold flex items-center gap-2">
-            <History size={18} className="text-[var(--accent)]" /> Job History
+            <History size={18} className="text-[var(--accent)]" /> Історія задач
           </h2>
           {selectedIds.size >= 2 && (
             <button
               onClick={() => setShowComparison(true)}
               className="text-xs bg-[var(--accent)] text-black font-bold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity"
             >
-              Compare {selectedIds.size} runs
+              Порівняти {selectedIds.size} запуски
             </button>
           )}
         </div>
@@ -256,13 +256,13 @@ export default function AnalyticsPage() {
             <thead className="text-xs text-gray-500 uppercase bg-gray-800/50">
               <tr>
                 <th className="px-3 py-3 w-8"></th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">File</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Config</th>
-                <th className="px-4 py-3">Traffic</th>
-                <th className="px-4 py-3">FPS</th>
-                <th className="px-4 py-3">Actions</th>
+                <th className="px-4 py-3">Дата</th>
+                <th className="px-4 py-3">Файл</th>
+                <th className="px-4 py-3">Статус</th>
+                <th className="px-4 py-3">Конфіг</th>
+                <th className="px-4 py-3">Трафік</th>
+                <th className="px-4 py-3">Кадрів/с</th>
+                <th className="px-4 py-3">Дії</th>
               </tr>
             </thead>
             <tbody>
@@ -275,7 +275,7 @@ export default function AnalyticsPage() {
                         checked={selectedIds.has(j.job_id)}
                         onChange={() => toggleSelect(j.job_id)}
                         className="accent-[var(--accent)] w-3.5 h-3.5 cursor-pointer"
-                        title={selectedIds.size >= 4 && !selectedIds.has(j.job_id) ? 'Max 4 runs' : ''}
+                        title={selectedIds.size >= 4 && !selectedIds.has(j.job_id) ? 'Максимум 4 запуски' : ''}
                         disabled={selectedIds.size >= 4 && !selectedIds.has(j.job_id)}
                       />
                     )}
@@ -291,7 +291,7 @@ export default function AnalyticsPage() {
                       j.status === 'complete' ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                       : j.status === 'failed' ? 'bg-red-500/20 text-red-400 border border-red-500/30'
                       : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                    }`}>{j.status}</span>
+                    }`}>{j.status === 'complete' ? 'завершено' : j.status === 'failed' ? 'помилка' : 'обробка'}</span>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                     {j.config?.approach} · {j.config?.tracker_name}
@@ -342,7 +342,7 @@ export default function AnalyticsPage() {
                     )}
                     <button
                       onClick={() => {
-                        if (!confirm('Видалити цей job?')) return;
+                        if (!confirm('Видалити цю задачу?')) return;
                         deleteMutation.mutate(j.job_id);
                       }}
                       disabled={deleteMutation.isPending}
@@ -356,7 +356,7 @@ export default function AnalyticsPage() {
               ))}
               {jobs.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">No jobs yet.</td>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">Задач ще немає.</td>
                 </tr>
               )}
             </tbody>

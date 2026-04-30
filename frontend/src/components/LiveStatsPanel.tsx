@@ -1,10 +1,10 @@
 import type { LiveStats, Job } from '../types';
 
 const BEHAVIORS = [
-  { key: 'foraging',     label: 'Foraging',     color: 'var(--behavior-foraging)' },
-  { key: 'fanning',      label: 'Fanning',       color: 'var(--behavior-fanning)' },
-  { key: 'guarding',     label: 'Guarding',      color: 'var(--behavior-guarding)' },
-  { key: 'washboarding', label: 'Washboarding',  color: 'var(--behavior-washboarding)' },
+  { key: 'foraging',     label: 'Фуражування',  color: 'var(--behavior-foraging)' },
+  { key: 'fanning',      label: 'Вентиляція',    color: 'var(--behavior-fanning)' },
+  { key: 'guarding',     label: 'Охорона',       color: 'var(--behavior-guarding)' },
+  { key: 'washboarding', label: 'Вошборд',       color: 'var(--behavior-washboarding)' },
 ] as const;
 
 interface LiveStatsPanelProps {
@@ -34,27 +34,30 @@ export default function LiveStatsPanel({ liveStats, job }: LiveStatsPanelProps) 
   return (
     <div className="card h-full flex flex-col gap-4">
       <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-800 pb-2">
-        Live Stats
+        Статистика в реальному часі
       </h2>
 
       {!hasData ? (
         <div className="flex-grow flex items-center justify-center text-gray-600 text-sm">
-          Waiting for data…
+          Очікування даних…
         </div>
       ) : (
         <>
-          {/* IN / OUT / NET */}
+          {/* В / З / Нетто */}
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-[var(--bg-panel)] p-3 rounded-xl border border-[var(--color-in)]/25 text-center">
-              <div className="text-xs text-gray-500 mb-1">IN</div>
+              <div className="text-xs text-gray-500 mb-1">В</div>
               <div className="text-2xl font-bold" style={{ color: 'var(--color-in)' }}>{totalIn}</div>
             </div>
             <div className="bg-[var(--bg-panel)] p-3 rounded-xl border border-[var(--color-out)]/25 text-center">
-              <div className="text-xs text-gray-500 mb-1">OUT</div>
+              <div className="text-xs text-gray-500 mb-1">З</div>
               <div className="text-2xl font-bold" style={{ color: 'var(--color-out)' }}>{totalOut}</div>
             </div>
-            <div className="bg-[var(--bg-panel)] p-3 rounded-xl border border-gray-700 text-center">
-              <div className="text-xs text-gray-500 mb-1">NET</div>
+            <div
+              className="bg-[var(--bg-panel)] p-3 rounded-xl border border-gray-700 text-center cursor-help"
+              title="В мінус З (позитивне = більше влетіло)"
+            >
+              <div className="text-xs text-gray-500 mb-1">Нетто</div>
               <div
                 className="text-2xl font-bold"
                 style={{ color: net > 0 ? 'var(--color-in)' : net < 0 ? 'var(--color-out)' : 'var(--text-muted)' }}
@@ -64,36 +67,36 @@ export default function LiveStatsPanel({ liveStats, job }: LiveStatsPanelProps) 
             </div>
           </div>
 
-          {/* Active bees */}
+          {/* На рампі */}
           <div className="flex items-center justify-between bg-[var(--bg-panel)] px-4 py-3 rounded-xl border border-gray-700">
             <div className="flex items-center gap-2">
               {activeBees > 0 && (
                 <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse" />
               )}
-              <span className="text-sm text-gray-400">Active on ramp</span>
+              <span className="text-sm text-gray-400">На рампі зараз</span>
             </div>
             <span className="text-xl font-bold text-[var(--accent)]">{activeBees}</span>
           </div>
 
-          {/* Pipeline metrics */}
+          {/* Метрики пайплайну */}
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
             <div className="bg-[var(--bg-panel)] rounded-lg py-2 px-1 border border-gray-800">
-              <div className="text-gray-500 mb-0.5">FPS</div>
+              <div className="text-gray-500 mb-0.5">Кадрів/с</div>
               <div className="font-mono font-semibold text-gray-200">{fps > 0 ? fps.toFixed(1) : '—'}</div>
             </div>
             <div className="bg-[var(--bg-panel)] rounded-lg py-2 px-1 border border-gray-800">
-              <div className="text-gray-500 mb-0.5">Pose ✓</div>
+              <div className="text-gray-500 mb-0.5">Поза ✓</div>
               <div className="font-mono font-semibold" style={{ color: 'var(--color-pose)' }}>{poseOk}</div>
             </div>
             <div className="bg-[var(--bg-panel)] rounded-lg py-2 px-1 border border-gray-800">
-              <div className="text-gray-500 mb-0.5">Fallback</div>
+              <div className="text-gray-500 mb-0.5">Резерв</div>
               <div className="font-mono font-semibold" style={{ color: 'var(--color-fallback)' }}>{fallback}</div>
             </div>
           </div>
 
-          {/* Behavior bars */}
+          {/* Поведінкові бари */}
           <div className="flex-grow">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Behavior</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Поведінка</div>
             <div className="space-y-2.5">
               {behaviorCounts.map(b => (
                 <div key={b.key}>

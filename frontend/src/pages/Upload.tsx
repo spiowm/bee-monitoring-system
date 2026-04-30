@@ -141,17 +141,17 @@ export default function UploadPage() {
               <div className="w-20 h-20 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center mx-auto mb-4">
                 <Video size={36} className="opacity-30" />
               </div>
-              <p className="text-sm text-gray-500">Select a video and press</p>
-              <p className="text-xs text-gray-700 mt-1">Start Pipeline</p>
+              <p className="text-sm text-gray-500">Оберіть відео і натисніть</p>
+              <p className="text-xs text-gray-700 mt-1">Запустити аналіз</p>
             </div>
           )}
 
           {isProcessing && (
             <div className="w-full max-w-sm p-8 text-center">
               <div className="w-16 h-16 rounded-full border-4 border-[var(--accent)]/20 border-t-[var(--accent)] animate-spin mx-auto mb-5" />
-              <h3 className="text-lg font-bold mb-1 text-gray-100">Analyzing Video</h3>
+              <h3 className="text-lg font-bold mb-1 text-gray-100">Аналізується відео</h3>
               <p className="text-xs text-gray-500 mb-4">
-                Frame {liveStats?.current_frame || 0} / {liveStats?.total_frames || '?'}
+                Кадр {liveStats?.current_frame || 0} / {liveStats?.total_frames || '?'}
               </p>
               <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden mb-5">
                 <div
@@ -165,7 +165,7 @@ export default function UploadPage() {
                 className="flex items-center gap-2 mx-auto text-sm px-4 py-2 rounded-lg bg-red-900/40 hover:bg-red-800/60 border border-red-700/50 text-red-300 transition-colors disabled:opacity-50"
               >
                 <Square size={13} />
-                {stopMut.isPending ? 'Stopping…' : 'Stop & Delete'}
+                {stopMut.isPending ? 'Зупиняємось…' : 'Стоп і видалити'}
               </button>
             </div>
           )}
@@ -177,11 +177,11 @@ export default function UploadPage() {
               </div>
               <div className="p-4 bg-[var(--bg-panel)] flex justify-between items-center border-t border-gray-800">
                 <div>
-                   <span className="font-bold text-[var(--accent)] text-lg">Analysis Complete</span>
-                   <p className="text-xs text-gray-400">Processed in {job.result.duration_sec.toFixed(1)}s ({job.result.fps_processed.toFixed(1)} fps)</p>
+                   <span className="font-bold text-[var(--accent)] text-lg">Аналіз завершено</span>
+                   <p className="text-xs text-gray-400">Оброблено за {job.result.duration_sec.toFixed(1)}с ({job.result.fps_processed.toFixed(1)} кадрів/с)</p>
                 </div>
                 <a href={`${import.meta.env.VITE_API_URL || window.location.origin}${job.result.annotated_video_url}`} download className="flex items-center gap-2 text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition-colors">
-                  <Download size={16} /> Download Video
+                  <Download size={16} /> Завантажити відео
                 </a>
               </div>
             </div>
@@ -190,7 +190,7 @@ export default function UploadPage() {
           {job && job.status === 'failed' && (
             <div className="text-red-400 text-center">
               <AlertCircle size={48} className="mx-auto mb-2" />
-              <p>Pipeline Failed</p>
+              <p>Помилка обробки</p>
               <p className="text-xs opacity-70 mt-2">{job.error}</p>
             </div>
           )}
