@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
 import torch
 import dagshub
 import mlflow
@@ -37,7 +38,7 @@ def _init_dagshub(dagshub_user: str, dagshub_repo: str) -> None:
         dagshub.init(mlflow=True)
 
 
-def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
+def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int, save_dir: Path = None) -> dict:
     """NME and angular error for bee pose (head→stinger) on the validation set.
 
     NME (Normalized Mean Error) = mean keypoint distance / GT bbox diagonal.
@@ -143,12 +144,27 @@ def _compute_pose_metrics(model, prepared_dir: Path, imgsz: int) -> dict:
     }
     if angle_errors:
         angl = np.array(angle_errors)
+        mean   = float(np.mean(angl))
+        median = float(np.median(angl))
         metrics.update({
-            "angular_error_mean_deg":        round(float(np.mean(angl)), 2),
-            "angular_error_median_deg":      round(float(np.median(angl)), 2),
+            "angular_error_mean_deg":        round(mean, 2),
+            "angular_error_median_deg":      round(median, 2),
             "angular_accuracy_within_15deg": round(float(np.mean(angl < 15) * 100), 1),
             "angular_accuracy_within_30deg": round(float(np.mean(angl < 30) * 100), 1),
         })
+
+        if save_dir is not None:
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.hist(angl, bins=36, range=(0, 180), color='steelblue', edgecolor='white')
+            ax.axvline(mean,   color='red',    linestyle='--', label=f'Mean = {mean:.2f}°')
+            ax.axvline(median, color='orange', linestyle='--', label=f'Median = {median:.2f}°')
+            ax.set_xlabel('Кутова похибка (градуси)')
+            ax.set_ylabel('Кількість пар')
+            ax.set_title(f'Розподіл кутових похибок орієнтації (n={len(angle_errors)})')
+            ax.legend()
+            fig.tight_layout()
+            fig.savefig(save_dir / 'angular_error_histogram.png', dpi=150)
+            plt.close(fig)
     return metrics
 
 
@@ -311,7 +327,7 @@ def main(cfg: DictConfig):
         if kpt_shape == [2, 2] and best_pt.exists():
             print("INFO: Обчислення pose-метрик на val-сеті...")
             pose_model = YOLO(str(best_pt))
-            pose = _compute_pose_metrics(pose_model, prepared_dir, imgsz=cfg.training.imgsz)
+            pose = _compute_pose_metrics(pose_model, prepared_dir, imgsz=cfg.training.imgsz, save_dir=save_path)
             if pose:
                 for mk, mv in pose.items():
                     client.log_metric(run_id, mk, mv)

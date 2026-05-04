@@ -37,4 +37,4 @@ training:
   mixup: 0.0
 
 model:
-  name: "yolo11s-pose.pt"
+  name: "yolo11n-pose.pt"
