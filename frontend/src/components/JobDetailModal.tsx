@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { X, Download } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getJobJobsJobIdGet } from '../api/generated';
+import BehaviorLegend from './BehaviorLegend';
+import RecommendationsSection from './RecommendationsSection';
+import PoseFilterCard from './PoseFilterCard';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -151,28 +154,55 @@ export default function JobDetailModal({ jobId, onClose }: { jobId: string; onCl
       <div className="bg-[var(--bg-card)] rounded-xl w-full max-w-6xl max-h-[92vh] overflow-y-auto border border-gray-700 shadow-2xl">
 
         {/* Header */}
-        <div className="sticky top-0 bg-[var(--bg-card)] border-b border-gray-800 p-4 flex justify-between items-start z-10">
-          <div>
-            <h2 className="text-base font-bold text-[var(--text-primary)]">{job.filename}</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {new Date(job.created_at).toLocaleString()} ·
-              Approach {job.result?.approach_used} · {job.result?.tracker_used} ·
-              <span className="text-[var(--color-in)] font-bold"> {job.result?.total_in} IN</span> /
-              <span className="text-[var(--color-out)] font-bold"> {job.result?.total_out} OUT</span> ·
-              {job.result?.fps_processed.toFixed(1)} fps · {job.result?.duration_sec.toFixed(1)}s
-            </p>
-          </div>
-          <div className="flex gap-2 shrink-0 ml-4">
-            <button onClick={exportCSV} className="flex items-center gap-1.5 text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition-colors">
-              <Download size={13} /> CSV
-            </button>
-            <button onClick={onClose} className="p-1.5 hover:bg-gray-800 rounded-full transition-colors">
-              <X size={18} />
-            </button>
+        <div className="sticky top-0 bg-[var(--bg-card)] border-b border-gray-800 p-4 z-10">
+          <div className="flex justify-between items-start gap-4">
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-[var(--text-primary)] truncate">{job.filename}</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {new Date(job.created_at).toLocaleString('uk')} ·
+                Approach {job.result?.approach_used} · {job.result?.tracker_used} ·
+                <span className="text-[var(--color-in)] font-bold"> {job.result?.total_in} IN</span> /
+                <span className="text-[var(--color-out)] font-bold"> {job.result?.total_out} OUT</span> ·
+                {job.result?.fps_processed.toFixed(1)} fps · {job.result?.duration_sec.toFixed(1)}s
+              </p>
+              <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-gray-500">
+                <span className={job.result?.ramp_detected ? 'text-green-400' : 'text-yellow-400'}>
+                  {job.result?.ramp_detected ? '✓ Рампа знайдена' : '⚠ Рампа не виявлена'}
+                </span>
+                <span>·</span>
+                <span>Модель: <span className="text-gray-300 font-mono">{(job.config as any)?.model_name || 'bee_pose (за замовч.)'}</span></span>
+                <span>·</span>
+                <span>Pose-confirmed: <span className="text-blue-400 font-mono">{job.result?.pose_confirmed_events ?? 0}</span></span>
+                <span>·</span>
+                <span>Fallback: <span className="text-gray-400 font-mono">{job.result?.fallback_events ?? 0}</span></span>
+              </div>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={exportCSV} className="flex items-center gap-1.5 text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition-colors">
+                <Download size={13} /> CSV
+              </button>
+              <button onClick={onClose} className="p-1.5 hover:bg-gray-800 rounded-full transition-colors">
+                <X size={18} />
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="p-4 space-y-5">
+
+          {/* Behavior legend */}
+          <BehaviorLegend />
+
+          {/* Pose-фільтр ефективність (тільки для Approach B) */}
+          <PoseFilterCard
+            approach={job.result?.approach_used ?? 'A'}
+            poseConfirmed={job.result?.pose_confirmed_events ?? 0}
+            fallback={job.result?.fallback_events ?? 0}
+            rejected={job.result?.pose_rejected_events ?? 0}
+          />
+
+          {/* Beekeeper recommendations */}
+          <RecommendationsSection recommendations={job.result?.recommendations} />
 
           {/* Charts row */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">

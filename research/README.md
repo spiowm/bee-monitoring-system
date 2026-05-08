@@ -80,3 +80,13 @@ uv run src/run_experiment.py experiment=bee_pose training.lr0=0.0005 training.ba
 - Датасети Kaggle мають бути **опубліковані** (навіть як private). Draft → 403.
 - Hive-based split потрібен для bee_pose: перші 9 символів назви файлу = ID вулика.
 - `fliplr=0.0` для ramp_detection — порядок кутових keypoints не зберігається при flip.
+
+## GT-датасет для бекенд-evaluation
+
+`datasets/raw/tracking_and_behavior/` (~625 МБ, у gitignore) — **не тренувальний** датасет. Його споживає `POST /jobs/evaluate` на бекенді для порівняння передбачених IN/OUT-подій з ground-truth. Кожне відео має три файли:
+
+- `<basename>.mp4` — 50 FPS, 1920×1080
+- `tracks_and_behavior_classes_<basename>.txt` — `frame, track_id, cx, cy, w, h, [4 поведінкові біти]` (CXCYWH у [0,1])
+- `entrance_zone_<basename>.txt` — `polygon = np.array([[x1,y1], …])` (4 точки полігона входу)
+
+Доступні пари: `20230711a-fan`, `20230711b-fan`, `20230609b-def` (defense), `yt8`. Деталі парсера — у [backend/services/evaluation/gt_loader.py](../backend/services/evaluation/gt_loader.py).

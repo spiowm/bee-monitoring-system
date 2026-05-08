@@ -32,12 +32,14 @@ class TrackEntry:
         """
         if len(self.positions) < 2:
             return {
-                "avg_speed": 0.0, 
-                "current_speed": 0.0, 
-                "spread_x": 0.0, 
+                "avg_speed": 0.0,
+                "current_speed": 0.0,
+                "spread_x": 0.0,
                 "spread_y": 0.0,
                 "track_dir_vec": (0.0, 0.0),
-                "instant_dir_vec": (0.0, 0.0)
+                "instant_dir_vec": (0.0, 0.0),
+                "max_displacement": 0.0,
+                "zero_cross_rate": 0.0,
             }
         
         pos_np = np.array(self.positions)
@@ -54,12 +56,28 @@ class TrackEntry:
         
         spread_x = float(np.max(pos_np[:, 0]) - np.min(pos_np[:, 0]))
         spread_y = float(np.max(pos_np[:, 1]) - np.min(pos_np[:, 1]))
-        
+
         # Vector from first seen in window to last
         track_dir_vec = float(pos_np[-1, 0] - pos_np[0, 0]), float(pos_np[-1, 1] - pos_np[0, 1])
-        
+
         # Instant vector (last two frames)
         instant_dir = float(pos_np[-1, 0] - pos_np[-2, 0]), float(pos_np[-1, 1] - pos_np[-2, 1])
+
+        # Maximum displacement from the first window position (для Fanning Dfan)
+        first = pos_np[0]
+        max_displacement = float(np.max(np.linalg.norm(pos_np - first, axis=1)))
+
+        # Zero-cross rate of acceleration (для Washboarding ZCR > 2 Hz)
+        zero_cross_rate = 0.0
+        if len(pos_np) >= 4 and duration_sec > 0:
+            velocities = diffs * fps
+            speeds = np.linalg.norm(velocities, axis=1)
+            accelerations = np.diff(speeds) * fps
+            if accelerations.size >= 2:
+                signs = np.sign(accelerations)
+                signs[signs == 0] = 1.0
+                crossings = int(np.sum(signs[:-1] != signs[1:]))
+                zero_cross_rate = crossings / duration_sec
 
         return {
             "avg_speed": avg_speed,
@@ -67,7 +85,9 @@ class TrackEntry:
             "spread_x": spread_x,
             "spread_y": spread_y,
             "track_dir_vec": track_dir_vec,
-            "instant_dir_vec": instant_dir
+            "instant_dir_vec": instant_dir,
+            "max_displacement": max_displacement,
+            "zero_cross_rate": zero_cross_rate,
         }
 
 

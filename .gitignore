@@ -1,0 +1,19 @@
+# Datasets / large files (may sit at repo root by accident)
+traching_and_behavior/
+tracking_and_behavior/
+*.pt
+*.onnx
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+
+123/
+
+
+# OS
+.DS_Store
+Thumbs.db

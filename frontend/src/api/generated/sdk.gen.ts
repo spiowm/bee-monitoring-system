@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { CompareApproachesAnalyticsCompareApproachesGetData, CompareApproachesAnalyticsCompareApproachesGetResponses, CreateJobJobsPostData, CreateJobJobsPostErrors, CreateJobJobsPostResponses, CreateTestJobJobsTestPostData, CreateTestJobJobsTestPostErrors, CreateTestJobJobsTestPostResponses, DeleteJobJobsJobIdDeleteData, DeleteJobJobsJobIdDeleteErrors, DeleteJobJobsJobIdDeleteResponses, GetJobJobsJobIdGetData, GetJobJobsJobIdGetErrors, GetJobJobsJobIdGetResponses, GetJobLiveStatsJobsJobIdLiveGetData, GetJobLiveStatsJobsJobIdLiveGetErrors, GetJobLiveStatsJobsJobIdLiveGetResponses, GetSummaryAnalyticsSummaryGetData, GetSummaryAnalyticsSummaryGetResponses, ListJobsJobsGetData, ListJobsJobsGetResponses, ListModelsModelsGetData, ListModelsModelsGetResponses, ListTestVideosJobsTestVideosGetData, ListTestVideosJobsTestVideosGetResponses } from './types.gen';
+import type { CompareApproachesAnalyticsCompareApproachesGetData, CompareApproachesAnalyticsCompareApproachesGetResponses, CreateEvalJobJobsEvaluatePostData, CreateEvalJobJobsEvaluatePostErrors, CreateEvalJobJobsEvaluatePostResponses, CreateJobJobsPostData, CreateJobJobsPostErrors, CreateJobJobsPostResponses, CreateTestJobJobsTestPostData, CreateTestJobJobsTestPostErrors, CreateTestJobJobsTestPostResponses, DeleteJobJobsJobIdDeleteData, DeleteJobJobsJobIdDeleteErrors, DeleteJobJobsJobIdDeleteResponses, GetJobJobsJobIdGetData, GetJobJobsJobIdGetErrors, GetJobJobsJobIdGetResponses, GetJobLiveStatsJobsJobIdLiveGetData, GetJobLiveStatsJobsJobIdLiveGetErrors, GetJobLiveStatsJobsJobIdLiveGetResponses, GetSummaryAnalyticsSummaryGetData, GetSummaryAnalyticsSummaryGetResponses, ListEvaluationPairsJobsEvaluateTestPairsGetData, ListEvaluationPairsJobsEvaluateTestPairsGetResponses, ListJobsJobsGetData, ListJobsJobsGetResponses, ListModelsModelsGetData, ListModelsModelsGetResponses, ListTestVideosJobsTestVideosGetData, ListTestVideosJobsTestVideosGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -79,6 +79,30 @@ export const listTestVideosJobsTestVideosGet = <ThrowOnError extends boolean = f
     responseType: 'json',
     url: '/jobs/test/videos',
     ...options
+});
+
+/**
+ * List Evaluation Pairs
+ *
+ * Доступні відео+GT пари з research/datasets/raw/tracking_and_behavior/.
+ */
+export const listEvaluationPairsJobsEvaluateTestPairsGet = <ThrowOnError extends boolean = false>(options?: Options<ListEvaluationPairsJobsEvaluateTestPairsGetData, ThrowOnError>) => (options?.client ?? client).get<ListEvaluationPairsJobsEvaluateTestPairsGetResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    url: '/jobs/evaluate/test-pairs',
+    ...options
+});
+
+/**
+ * Create Eval Job
+ */
+export const createEvalJobJobsEvaluatePost = <ThrowOnError extends boolean = false>(options: Options<CreateEvalJobJobsEvaluatePostData, ThrowOnError>) => (options.client ?? client).post<CreateEvalJobJobsEvaluatePostResponses, CreateEvalJobJobsEvaluatePostErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/jobs/evaluate',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**

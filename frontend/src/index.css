@@ -16,8 +16,9 @@
     --text-muted: #718096;
     --behavior-foraging: #48bb78;
     --behavior-fanning: #63b3ed;
-    --behavior-guarding: #f0b429;
-    --behavior-washboarding: #a0aec0;
+    --behavior-washboarding: #f0b429;
+    --behavior-defense: #ef4444;
+    --behavior-guarding: #f0b429; /* legacy alias for old jobs */
   }
   body {
     @apply bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans antialiased m-0 min-h-screen;

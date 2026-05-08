@@ -15,6 +15,7 @@ from services.track_history import TrackHistory
 from services.counter import TrafficCounter
 from services.behavior import BehaviorAnalyzer
 from services.annotator import FrameAnnotator
+from services.orientation import aligned, get_orientation_vector
 
 @dataclass
 class FrameContext:
@@ -33,6 +34,8 @@ class FrameContext:
     mapped_kpts: list = field(default_factory=list)
 
     events: list = field(default_factory=list)
+    rejected_events: list = field(default_factory=list)   # відсіяні pose-фільтром у цьому кадрі
+    defense_clusters: list = field(default_factory=list)  # активні захисні кластери цього кадру
     annotated_frame: np.ndarray = None
 
 class PipelineStage(ABC):
@@ -77,9 +80,9 @@ class DetectionStage(PipelineStage):
             valid = np.isfinite(cx) & np.isfinite(cy)
             if ctx.ramp_bbox is not None:
                 rx1, ry1, rx2, ry2 = ctx.ramp_bbox
-                # Extend top boundary upward so bees near/above the counting line
-                # (which sits at the top edge of the ramp bbox) are not excluded.
-                mask = valid & (cx >= rx1 - 30) & (cx <= rx2 + 30) & (cy >= ry1 - 120) & (cy <= ry2 + 30)
+                # Зменшуємо зону захоплення, щоб строго відповідати GT (тільки бджоли на льотку).
+                # Даємо невеликий запас зверху (ry1 - 20), щоб зафіксувати сам момент перетину.
+                mask = valid & (cx >= rx1 - 10) & (cx <= rx2 + 10) & (cy >= ry1 - 20) & (cy <= ry2 + 10)
             else:
                 mask = valid
 
@@ -178,12 +181,24 @@ class TrackUpdateStage(PipelineStage):
 class BehaviorStage(PipelineStage):
     def __init__(self, analyzer: BehaviorAnalyzer):
         self.analyzer = analyzer
-        
+
     def process(self, ctx: FrameContext, state: dict):
         if ctx.frame_num % 15 == 0:
-            current_behaviors = self.analyzer.analyze(state["history"], ctx.fps)
+            # Збираємо keypoints поточного кадру за track_id
+            kpts_by_track: dict[int, object] = {}
+            if ctx.tracked_detections is not None and ctx.tracked_detections.tracker_id is not None:
+                for i, tid in enumerate(ctx.tracked_detections.tracker_id):
+                    if i < len(ctx.mapped_kpts):
+                        kpts_by_track[int(tid)] = ctx.mapped_kpts[i]
+
+            current_behaviors = self.analyzer.analyze(
+                state["history"],
+                keypoints_by_track=kpts_by_track,
+                ramp_kpts=ctx.ramp_kpts,
+                fps=ctx.fps,
+            )
             state["current_behaviors"] = current_behaviors
-            
+
             counts = {k: 0 for k in state["behavior_counts"]}
             for b in current_behaviors.values():
                 if b in counts:
@@ -191,30 +206,156 @@ class BehaviorStage(PipelineStage):
             state["behavior_counts"] = counts
 
 
+class DefenseStage(PipelineStage):
+    """
+    Виявлення кластерів охоронців довкола кандидата-«крадія» (PLOS ONE 2025, Defense).
+    Параметри: Rdef = factor * bee_length, Adef ±45°, Ndef ≥ 2, Tdef ≥ 1.0 s.
+    Перезаписує state["current_behaviors"] для thief + defenders на "defense".
+    """
+    def __init__(self, config: dict | None = None):
+        config = config or {}
+        self.radius_factor = float(config.get("defense_radius_factor", 2.0))
+        self.angle_deg = float(config.get("defense_angle_deg", 45.0))
+        self.min_defenders = int(config.get("defense_min_defenders", 2))
+        self.duration_sec = float(config.get("defense_duration_sec", 1.0))
+        # thief_track_id -> кількість послідовних кадрів виявлення
+        self.cluster_history: dict[int, int] = {}
+
+    def process(self, ctx: FrameContext, state: dict):
+        ctx.defense_clusters = []
+        td = ctx.tracked_detections
+        if td is None or td.tracker_id is None or len(td.tracker_id) < self.min_defenders + 1:
+            self.cluster_history.clear()
+            return
+
+        boxes = td.xyxy
+        ids = [int(t) for t in td.tracker_id]
+        n = len(ids)
+        centers = np.array([
+            [(boxes[i][0] + boxes[i][2]) / 2.0, (boxes[i][1] + boxes[i][3]) / 2.0]
+            for i in range(n)
+        ])
+        bee_lengths = np.array([
+            max(boxes[i][2] - boxes[i][0], boxes[i][3] - boxes[i][1])
+            for i in range(n)
+        ])
+
+        body_vecs: list = []
+        for i in range(n):
+            kp = ctx.mapped_kpts[i] if i < len(ctx.mapped_kpts) else None
+            body_vecs.append(get_orientation_vector(np.asarray(kp)) if kp is not None else None)
+
+        active_clusters: dict[int, dict] = {}
+        for i in range(n):
+            radius = float(bee_lengths[i] * self.radius_factor)
+            defenders: list[int] = []
+            for j in range(n):
+                if i == j or body_vecs[j] is None:
+                    continue
+                vec_ij = centers[i] - centers[j]
+                dist = float(np.linalg.norm(vec_ij))
+                if dist > radius or dist < 1e-6:
+                    continue
+                vec_unit = vec_ij / dist
+                if aligned(body_vecs[j], vec_unit, self.angle_deg):
+                    defenders.append(ids[j])
+            if len(defenders) >= self.min_defenders:
+                active_clusters[ids[i]] = {
+                    "thief_track_id": ids[i],
+                    "defender_track_ids": defenders,
+                    "center": (float(centers[i][0]), float(centers[i][1])),
+                    "radius": radius,
+                }
+
+        # decay для зниклих кластерів
+        for tid in list(self.cluster_history.keys()):
+            if tid not in active_clusters:
+                del self.cluster_history[tid]
+        # increment для існуючих
+        for tid in active_clusters:
+            self.cluster_history[tid] = self.cluster_history.get(tid, 0) + 1
+
+        # Підтверджені (тривалість >= Tdef)
+        min_frames = max(1, int((ctx.fps or 30.0) * self.duration_sec))
+        confirmed = []
+        behaviors = state.get("current_behaviors") or {}
+        for tid, frames in self.cluster_history.items():
+            if frames < min_frames:
+                continue
+            cluster = active_clusters[tid]
+            confirmed.append({**cluster, "frame": ctx.frame_num})
+            # Перезапис поведінки thief + defenders
+            behaviors[tid] = "defense"
+            for did in cluster["defender_track_ids"]:
+                behaviors[did] = "defense"
+
+        if confirmed:
+            state["current_behaviors"] = behaviors
+            state.setdefault("defense_events", []).extend(confirmed)
+            counts = state.get("behavior_counts", {})
+            counts["defense"] = counts.get("defense", 0) + len(confirmed)
+            state["behavior_counts"] = counts
+
+        ctx.defense_clusters = confirmed
+
+
 class CountingStage(PipelineStage):
     def __init__(self, counter: TrafficCounter):
         self.counter = counter
         
     def process(self, ctx: FrameContext, state: dict):
-        events = self.counter.update(
+        events, rejected_events = self.counter.update(
             ctx.frame_num, ctx.tracked_detections, ctx.ramp_bbox, ctx.ramp_kpts, ctx.mapped_kpts,
             state["history"], state["current_behaviors"], ctx.fps,
         )
         ctx.events = events
+        ctx.rejected_events = rejected_events
         for e in events:
             state["all_events"].append(e)
             if e["direction"] == "IN": state["total_in"] += 1
             if e["direction"] == "OUT": state["total_out"] += 1
             if e["method"] == "pose_confirmed": state["pose_confirmed"] += 1
             if e["method"] == "trajectory_fallback": state["fallback_events"] += 1
+        for e in rejected_events:
+            state.setdefault("rejected_events", []).append(e)
+            state["pose_rejected"] = state.get("pose_rejected", 0) + 1
 
 
 class AnnotationStage(PipelineStage):
+    HIGHLIGHT_DURATION_SEC = 1.5
+
     def __init__(self, annotator: FrameAnnotator, counter: TrafficCounter):
         self.annotator = annotator
         self.counter = counter
-        
+        # track_id -> {"frames_remaining": int, "direction": "IN"|"OUT"}
+        self.highlight_buffer: dict[int, dict] = {}
+
     def process(self, ctx: FrameContext, state: dict):
+        # Декрементуємо попередні підсвічування і прибираємо вичерпані.
+        for tid in list(self.highlight_buffer.keys()):
+            self.highlight_buffer[tid]["frames_remaining"] -= 1
+            if self.highlight_buffer[tid]["frames_remaining"] <= 0:
+                del self.highlight_buffer[tid]
+
+        # Записуємо нові підсвічування за події цього кадру.
+        fps = ctx.fps or 30.0
+        duration_frames = max(1, int(fps * self.HIGHLIGHT_DURATION_SEC))
+        for e in ctx.events:
+            self.highlight_buffer[int(e["track_id"])] = {
+                "frames_remaining": duration_frames,
+                "kind": e["direction"],  # "IN" або "OUT" — зарахована подія
+            }
+        for e in ctx.rejected_events:
+            # Не перезаписуємо існуючий counted-highlight (counted має пріоритет)
+            tid = int(e["track_id"])
+            if tid not in self.highlight_buffer:
+                self.highlight_buffer[tid] = {
+                    "frames_remaining": duration_frames,
+                    "kind": "REJECTED",  # відсіяна pose-фільтром
+                }
+
+        highlight_meta = {tid: meta["kind"] for tid, meta in self.highlight_buffer.items()}
+
         stats_state = {
             "total_in": state["total_in"],
             "total_out": state["total_out"],
@@ -223,4 +364,6 @@ class AnnotationStage(PipelineStage):
         ctx.annotated_frame = self.annotator.annotate(
             ctx.frame, ctx.tracked_detections, ctx.ramp_bbox, ctx.ramp_kpts, ctx.mapped_kpts,
             state["current_behaviors"], self.counter, ctx.events, stats_state, state["history"],
+            highlight_meta=highlight_meta,
+            defense_clusters=ctx.defense_clusters,
         )

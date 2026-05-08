@@ -30,7 +30,18 @@ export interface LiveStats {
   approach: string;
   pose_confirmed: number;
   fallback_events: number;
+  pose_rejected?: number;
   behavior_counts: Record<string, number>;
+  recent_events?: Array<{
+    frame: number;
+    timestamp_sec: number;
+    track_id: number;
+    direction: 'IN' | 'OUT';
+    method: string;
+    speed_px_per_sec: number;
+    behavior_class?: string | null;
+    angle_deg?: number | null;
+  }>;
 }
 
 export interface JobResult {
@@ -43,10 +54,30 @@ export interface JobResult {
   tracker_used: string;
   pose_confirmed_events: number;
   fallback_events: number;
+  pose_rejected_events?: number;
   ramp_detected: boolean;
   annotated_video_url: string;
   behavior_summary: Record<string, number>;
   events: EventRecord[];
+  rejected_events?: EventRecord[];
+  recommendations?: Recommendation[];
+  defense_events?: DefenseEvent[];
+}
+
+export interface Recommendation {
+  severity: 'info' | 'warning' | 'critical';
+  icon: string;
+  title: string;
+  description: string;
+  action: string | null;
+}
+
+export interface DefenseEvent {
+  frame: number;
+  thief_track_id: number;
+  defender_track_ids: number[];
+  center: [number, number];
+  radius: number;
 }
 
 export interface EventRecord {
@@ -54,7 +85,7 @@ export interface EventRecord {
   timestamp_sec: number;
   track_id: number;
   direction: "IN" | "OUT";
-  method: "pose_confirmed" | "trajectory_fallback" | "trajectory_only";
+  method: "pose_confirmed" | "trajectory_fallback" | "trajectory_only" | "rejected";
   speed_px_per_sec: number;
   behavior_class: string | null;
   angle_deg: number | null;

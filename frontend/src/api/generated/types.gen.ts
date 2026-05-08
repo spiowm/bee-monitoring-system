@@ -23,6 +23,22 @@ export type BodyCreateJobJobsPost = {
 };
 
 /**
+ * EvaluateJobRequest
+ */
+export type EvaluateJobRequest = {
+    /**
+     * Filename
+     */
+    filename: string;
+    /**
+     * Gt Basename
+     */
+    gt_basename: string;
+    config: ProcessConfig;
+    viz_config: VizConfig;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -172,6 +188,24 @@ export type TestJobRequest = {
     filename: string;
     config: ProcessConfig;
     viz_config: VizConfig;
+};
+
+/**
+ * TestPair
+ */
+export type TestPair = {
+    /**
+     * Basename
+     */
+    basename: string;
+    /**
+     * Video Filename
+     */
+    video_filename: string;
+    /**
+     * Size Mb
+     */
+    size_mb: number;
 };
 
 /**
@@ -385,6 +419,49 @@ export type ListTestVideosJobsTestVideosGetResponses = {
      */
     200: unknown;
 };
+
+export type ListEvaluationPairsJobsEvaluateTestPairsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/jobs/evaluate/test-pairs';
+};
+
+export type ListEvaluationPairsJobsEvaluateTestPairsGetResponses = {
+    /**
+     * Response List Evaluation Pairs Jobs Evaluate Test Pairs Get
+     *
+     * Successful Response
+     */
+    200: Array<TestPair>;
+};
+
+export type ListEvaluationPairsJobsEvaluateTestPairsGetResponse = ListEvaluationPairsJobsEvaluateTestPairsGetResponses[keyof ListEvaluationPairsJobsEvaluateTestPairsGetResponses];
+
+export type CreateEvalJobJobsEvaluatePostData = {
+    body: EvaluateJobRequest;
+    path?: never;
+    query?: never;
+    url: '/jobs/evaluate';
+};
+
+export type CreateEvalJobJobsEvaluatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateEvalJobJobsEvaluatePostError = CreateEvalJobJobsEvaluatePostErrors[keyof CreateEvalJobJobsEvaluatePostErrors];
+
+export type CreateEvalJobJobsEvaluatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: JobCreateResponse;
+};
+
+export type CreateEvalJobJobsEvaluatePostResponse = CreateEvalJobJobsEvaluatePostResponses[keyof CreateEvalJobJobsEvaluatePostResponses];
 
 export type GetJobLiveStatsJobsJobIdLiveGetData = {
     body?: never;

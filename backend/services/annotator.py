@@ -14,7 +14,9 @@ class FrameAnnotator:
         self.viz_config = viz_config
 
     def annotate(self, frame, tracked_detections, ramp_bbox, ramp_kpts, keypoints_xy,
-                 behaviors, counter, events, stats_state, history: TrackHistory):
+                 behaviors, counter, events, stats_state, history: TrackHistory,
+                 highlight_meta: dict | None = None,
+                 defense_clusters: list | None = None):
         annotated_frame = frame.copy()
         h, w = frame.shape[:2]
         tail_len = self.viz_config.get("track_tail_length", 30)
@@ -84,9 +86,27 @@ class FrameAnnotator:
                             thickness = int(2 * alpha) + 1
                             cv2.line(annotated_frame, pts[pt_idx - 1], pts[pt_idx], color, thickness)
 
+                # HIGHLIGHT — glow для бджіл після перетину (тримається ~1.5 с)
+                # IN → зелений ✓, OUT → червоний ✓, REJECTED → сірий ✗ (pose-фільтр відсіяв)
+                hl = highlight_meta.get(int(track_id)) if highlight_meta else None
+                if hl is not None:
+                    if hl == "IN":
+                        glow_color, badge = (120, 255, 120), "IN ✓"
+                    elif hl == "OUT":
+                        glow_color, badge = (129, 129, 252), "OUT ✓"
+                    else:  # REJECTED
+                        glow_color, badge = (160, 160, 160), "✗ pose"
+                    cv2.rectangle(annotated_frame, (bx1 - 4, by1 - 4), (bx2 + 4, by2 + 4), glow_color, 2)
+                    (tw, th), _ = cv2.getTextSize(badge, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
+                    bg_x1, bg_y1 = bx1 - 6, max(0, by1 - 28)
+                    bg_x2, bg_y2 = bg_x1 + tw + 10, bg_y1 + th + 8
+                    cv2.rectangle(annotated_frame, (bg_x1, bg_y1), (bg_x2, bg_y2), glow_color, -1)
+                    cv2.putText(annotated_frame, badge, (bg_x1 + 5, bg_y2 - 4),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 2)
+
                 # BOUNDING BOXES
                 if self.viz_config.get("show_boxes", True):
-                    thickness = 3 if track_id in [e["track_id"] for e in events] else 2
+                    thickness = 2 if track_id in [e["track_id"] for e in events] else 1
                     cv2.rectangle(annotated_frame, (bx1, by1), (bx2, by2), color, thickness)
                     if self.viz_config.get("show_confidence", True) and tracked_detections.confidence is not None:
                         conf = float(tracked_detections.confidence[i])
@@ -101,7 +121,7 @@ class FrameAnnotator:
 
                 # BEHAVIOR LABELS
                 if self.viz_config.get("show_behaviors", True) and behaviors and track_id in behaviors:
-                    b_mapped = {"foraging": "FOR", "fanning": "FAN", "guarding": "GRD", "washboarding": "WSH"}
+                    b_mapped = {"foraging": "FOR", "fanning": "FAN", "washboarding": "POL", "defense": "DEF"}
                     b_lbl = b_mapped.get(behaviors[track_id], "")
                     if b_lbl:
                         cv2.putText(annotated_frame, b_lbl, (bx1, by2 + 15),
@@ -113,18 +133,33 @@ class FrameAnnotator:
                     hx, hy = int(kp[0][0]), int(kp[0][1])
                     tx, ty = int(kp[1][0]), int(kp[1][1])
                     if self.viz_config.get("show_keypoints", True):
-                        cv2.circle(annotated_frame, (hx, hy), 4, (0, 255, 0), -1)
-                        cv2.circle(annotated_frame, (tx, ty), 4, (0, 0, 255), -1)
+                        cv2.circle(annotated_frame, (hx, hy), 2, (0, 255, 0), -1)
+                        cv2.circle(annotated_frame, (tx, ty), 2, (0, 0, 255), -1)
                     if self.viz_config.get("show_orientation", True):
                         dist = np.sqrt((hx - tx) ** 2 + (hy - ty) ** 2)
                         if dist > 10:
                             cv2.arrowedLine(annotated_frame, (tx, ty), (hx, hy),
-                                            (41, 180, 240), 2, tipLength=0.4)
+                                            (41, 180, 240), 1, tipLength=0.3)
+
+        # 8.5 DEFENSE CLUSTERS — червоне коло довкола кластера
+        if defense_clusters:
+            for cluster in defense_clusters:
+                cx, cy = cluster["center"]
+                radius = int(cluster["radius"])
+                cv2.circle(annotated_frame, (int(cx), int(cy)), radius, (0, 0, 220), 3)
+                label = "DEFENSE"
+                (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                lx = int(cx - tw / 2)
+                ly = int(cy - radius - 6)
+                cv2.rectangle(annotated_frame, (lx - 4, ly - th - 4), (lx + tw + 4, ly + 4),
+                              (0, 0, 220), -1)
+                cv2.putText(annotated_frame, label, (lx, ly),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
         # 9. STATS OVERLAY
         if self.viz_config.get("show_stats_overlay", True):
             overlay = annotated_frame.copy()
-            cv2.rectangle(overlay, (w - 220, 10), (w - 10, 120), (0, 0, 0), -1)
+            cv2.rectangle(overlay, (w - 220, 10), (w - 10, 90), (0, 0, 0), -1)
             cv2.addWeighted(overlay, 0.6, annotated_frame, 0.4, 0, annotated_frame)
             cv2.putText(annotated_frame,
                         f"IN: {stats_state.get('total_in', 0)} | OUT: {stats_state.get('total_out', 0)}",
@@ -132,7 +167,5 @@ class FrameAnnotator:
             active = len(tracked_detections.tracker_id) if tracked_detections.tracker_id is not None else 0
             cv2.putText(annotated_frame, f"Bees on ramp: {active}",
                         (w - 210, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-            cv2.putText(annotated_frame, f"FPS: {stats_state.get('fps', 0):.1f}",
-                        (w - 210, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
         return annotated_frame

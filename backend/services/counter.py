@@ -35,9 +35,17 @@ class TrafficCounter:
 
     def update(self, frame_num, tracked_detections, ramp_bbox, ramp_kpts, keypoints_xy,
                history: TrackHistory, behaviors=None, fps=30.0):
+        """
+        Повертає (events, rejected_events).
+        - events: зараховані перетини (trajectory_only / pose_confirmed / trajectory_fallback).
+        - rejected_events: перетини, які Approach A зарахував би, але Approach B відсіяв
+          через невідповідність вектора пози (method="rejected"). Зберігаються окремо
+          для аналітики ефективності pose-фільтра.
+        """
         events = []
+        rejected_events = []
         if tracked_detections.tracker_id is None:
-            return events
+            return events, rejected_events
 
         if frame_num == 1:
             logger.info(
@@ -97,18 +105,25 @@ class TrafficCounter:
                     method = "trajectory_fallback"
                     valid = True
 
+            behav = behaviors.get(track_id) if behaviors else None
+            event_payload = {
+                "frame": frame_num,
+                "timestamp_sec": frame_num / fps,
+                "track_id": int(track_id),
+                "direction": direction,
+                "method": method,
+                "speed_px_per_sec": float(speed_px_per_sec),
+                "behavior_class": behav,
+                "angle_deg": float(angle_deg) if angle_deg is not None else None,
+            }
+
             if valid and method != "rejected":
                 self.track_counted[track_id] = frame_num
-                behav = behaviors.get(track_id) if behaviors else None
-                events.append({
-                    "frame": frame_num,
-                    "timestamp_sec": frame_num / fps,
-                    "track_id": int(track_id),
-                    "direction": direction,
-                    "method": method,
-                    "speed_px_per_sec": float(speed_px_per_sec),
-                    "behavior_class": behav,
-                    "angle_deg": float(angle_deg) if angle_deg is not None else None,
-                })
+                events.append(event_payload)
+            elif method == "rejected":
+                # Зберігаємо для аналітики «що відсіяв pose-фільтр», але debounce
+                # все одно фіксуємо, щоб одну бджолу не записати кілька разів.
+                self.track_counted[track_id] = frame_num
+                rejected_events.append(event_payload)
 
-        return events
+        return events, rejected_events

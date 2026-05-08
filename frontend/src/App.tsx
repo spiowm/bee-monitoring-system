@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import UploadPage from './pages/Upload';
 import AnalyticsPage from './pages/Analytics';
-import { Activity, BarChart2 } from 'lucide-react';
+import EvaluationPage from './pages/Evaluation';
+import { Activity, BarChart2, Target } from 'lucide-react';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `text-sm font-medium flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
@@ -23,10 +24,13 @@ function App() {
             </div>
             <nav className="flex gap-2">
               <NavLink to="/" end className={navClass}>
-                <Activity size={16} /> <span>Upload & Process</span>
+                <Activity size={16} /> <span>Завантаження</span>
               </NavLink>
               <NavLink to="/analytics" className={navClass}>
-                <BarChart2 size={16} /> <span>Analytics & Research</span>
+                <BarChart2 size={16} /> <span>Аналітика</span>
+              </NavLink>
+              <NavLink to="/evaluation" className={navClass}>
+                <Target size={16} /> <span>Точність</span>
               </NavLink>
             </nav>
           </div>
@@ -37,6 +41,7 @@ function App() {
           <Routes>
             <Route path="/" element={<UploadPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/evaluation" element={<EvaluationPage />} />
           </Routes>
         </main>
       </div>

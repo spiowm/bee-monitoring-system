@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { UploadCloud, Video, Settings, ChevronRight, ChevronDown, Sliders, Play, Cpu } from 'lucide-react';
+import { UploadCloud, Video, Settings, ChevronRight, ChevronDown, Sliders, Play, Cpu, SlidersHorizontal } from 'lucide-react';
 import type { ProcessConfig, VizConfig } from '../types';
 
 const VIZ_LABELS: Record<string, string> = {
@@ -17,9 +17,25 @@ const VIZ_LABELS: Record<string, string> = {
   show_recent_events: 'Останні події',
 };
 
+const VIZ_TOOLTIPS: Record<string, string> = {
+  show_boxes:         'Прямокутники навколо розпізнаних бджіл',
+  show_ids:           'Унікальні номери (track_id), які призначає алгоритм',
+  show_confidence:    'Відсоток впевненості моделі у правильності розпізнавання',
+  show_keypoints:     'Критичні точки на тілі (вимагає додаткових обчислень)',
+  show_ramp:          'Контур виявленої зони прилітної дошки (льотка)',
+  show_behaviors:     'Текстові підписи дій (фуражування, вентиляція тощо)',
+  show_counting_line: 'Лінія, перетин якої реєструє вліт або виліт',
+  show_stats_overlay: 'Напівпрозоре інформаційне табло вгорі відео',
+  show_tracks:        'Хвости, що показують шлях бджоли (повільна відмальовка)',
+  show_orientation:   'Стрілки напрямку тіла бджоли',
+  show_recent_events: 'Список останніх перетинів льотка збоку',
+};
+
 interface JobConfigPanelProps {
   file: File | null;
   setFile: (file: File | null) => void;
+  testVideoName: string | null;
+  setTestVideoName: (name: string | null) => void;
   config: ProcessConfig;
   setConfig: (config: ProcessConfig) => void;
   vizConfig: VizConfig;
@@ -28,7 +44,6 @@ interface JobConfigPanelProps {
   isProcessing: boolean;
   jobId: string | null;
   onStart: () => void;
-  onStartTest: (filename: string) => void;
 }
 
 function Slider({
@@ -53,9 +68,11 @@ function Slider({
 }
 
 export default function JobConfigPanel({
-  file, setFile, config, setConfig, vizConfig, setVizConfig,
-  testVideos, isProcessing, jobId, onStart, onStartTest,
+  file, setFile, testVideoName, setTestVideoName,
+  config, setConfig, vizConfig, setVizConfig,
+  testVideos, isProcessing, jobId, onStart,
 }: JobConfigPanelProps) {
+  const [advancedMode, setAdvancedMode] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showBehavior, setShowBehavior] = useState(false);
   const [showViz, setShowViz] = useState(false);
@@ -84,7 +101,7 @@ export default function JobConfigPanel({
     ?? availableModels.find(m => m.name === 'bee_pose')
     ?? availableModels[0];
 
-  const canStart = (!!file || !!jobId) && !isProcessing;
+  const canStart = (!!file || !!testVideoName || !!jobId) && !isProcessing;
 
   return (
     <div className="card space-y-4">
@@ -93,8 +110,13 @@ export default function JobConfigPanel({
       </h2>
 
       {/* Зона завантаження файлу */}
-      <div className="border-2 border-dashed border-gray-700 hover:border-[var(--accent)] cursor-pointer rounded-xl p-5 text-center transition-colors bg-[var(--bg-panel)] relative">
-        <input type="file" accept="video/*" onChange={e => setFile(e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
+      <div className={`border-2 border-dashed ${file ? 'border-[var(--accent)]' : 'border-gray-700 hover:border-[var(--accent)]'} cursor-pointer rounded-xl p-5 text-center transition-colors bg-[var(--bg-panel)] relative`}>
+        <input type="file" accept="video/*" onChange={e => {
+          if (e.target.files?.[0]) {
+            setFile(e.target.files[0]);
+            setTestVideoName(null);
+          }
+        }} className="absolute inset-0 opacity-0 cursor-pointer" />
         {!file ? (
           <div className="text-gray-400 text-sm">
             <Video size={32} className="mx-auto mb-2 opacity-40" />
@@ -102,7 +124,7 @@ export default function JobConfigPanel({
             <p className="text-xs mt-1 opacity-60">MP4, AVI, MOV · до 500 МБ</p>
           </div>
         ) : (
-          <div className="text-green-400 text-sm font-medium break-all">{file.name} ({(file.size / 1024 / 1024).toFixed(1)} МБ)</div>
+          <div className="text-[var(--accent)] text-sm font-medium break-all">{file.name} ({(file.size / 1024 / 1024).toFixed(1)} МБ)</div>
         )}
       </div>
 
@@ -111,57 +133,17 @@ export default function JobConfigPanel({
         {testVideos.map(tv => (
           <button
             key={tv}
-            onClick={() => onStartTest(tv)}
+            onClick={() => {
+              setTestVideoName(tv);
+              setFile(null);
+            }}
             disabled={isProcessing}
-            className="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs py-1.5 px-3 rounded-lg flex-1 min-w-[110px] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+            className={`${testVideoName === tv ? 'bg-[var(--accent)] text-black font-bold' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'} text-xs py-1.5 px-3 rounded-lg flex-1 min-w-[110px] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5`}
           >
             <Play size={11} /> {tv}
           </button>
         ))}
         {testVideos.length === 0 && <span className="text-xs text-gray-600">Тестових відео немає</span>}
-      </div>
-
-      {/* Вибір моделі */}
-      {availableModels.length > 1 && (
-        <div>
-          <label className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
-            <Cpu size={12} /> Модель детекції
-          </label>
-          <select
-            value={c.model_name || ''}
-            onChange={e => set({ model_name: e.target.value || null })}
-            className="w-full bg-[var(--bg-panel)] border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:border-[var(--accent)] focus:outline-none"
-          >
-            <option value="">За замовч. (bee_pose)</option>
-            {availableModels.map(m => (
-              <option key={m.name} value={m.name}>
-                {m.name}
-                {m.variant ? ` · yolo11${m.variant}` : ''}
-                {m.imgsz ? ` · ${m.imgsz}пкс` : ''}
-              </option>
-            ))}
-          </select>
-          {selectedModel && (
-            <p className="text-[11px] text-gray-500 mt-1">
-              {selectedModel.task ?? '—'} ·{' '}
-              навчено на {selectedModel.imgsz ?? '?'}пкс ·{' '}
-              {selectedModel.trained_with_half ? 'FP16' : 'FP32'}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Трекер */}
-      <div>
-        <label className="text-xs text-gray-400 mb-1 block">Трекер</label>
-        <div className="flex gap-4">
-          {['bytetrack', 'ocsort'].map(t => (
-            <label key={t} className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="radio" checked={config.tracker_name === t} onChange={() => set({ tracker_name: t })} className="accent-[var(--accent)]" />
-              {t === 'bytetrack' ? 'ByteTrack' : 'OC-SORT'}
-            </label>
-          ))}
-        </div>
       </div>
 
       {/* Метод підрахунку */}
@@ -185,15 +167,62 @@ export default function JobConfigPanel({
         </div>
       </div>
 
-      {/* Детекція і трекінг */}
+      {/* Розширені налаштування — toggle */}
       <button
-        className="flex items-center justify-between w-full text-xs font-semibold text-gray-400 py-2 border-t border-gray-700"
-        onClick={() => setShowAdvanced(!showAdvanced)}
+        type="button"
+        className={`flex items-center justify-between w-full text-xs font-semibold py-2.5 px-3 rounded-lg border transition-colors ${
+          advancedMode
+            ? 'bg-[var(--accent)]/10 border-[var(--accent)]/40 text-[var(--accent)]'
+            : 'bg-[var(--bg-panel)] border-gray-700 text-gray-400 hover:border-gray-600'
+        }`}
+        onClick={() => setAdvancedMode(!advancedMode)}
       >
-        <span className="flex items-center gap-2"><Settings size={14} /> Детекція і трекінг</span>
-        {showAdvanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        <span className="flex items-center gap-2"><SlidersHorizontal size={14} /> Розширені налаштування</span>
+        {advancedMode ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
-      {showAdvanced && (
+
+      {advancedMode && (
+        <div className="space-y-4">
+          {/* Вибір моделі */}
+          {availableModels.length > 1 && (
+            <div>
+              <label className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
+                <Cpu size={12} /> Модель детекції
+              </label>
+              <select
+                value={c.model_name || ''}
+                onChange={e => set({ model_name: e.target.value || null })}
+                className="w-full bg-[var(--bg-panel)] border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:border-[var(--accent)] focus:outline-none"
+              >
+                <option value="">За замовч. (bee_pose)</option>
+                {availableModels.map(m => (
+                  <option key={m.name} value={m.name}>
+                    {m.name}
+                    {m.variant ? ` · yolo11${m.variant}` : ''}
+                    {m.imgsz ? ` · ${m.imgsz}пкс` : ''}
+                  </option>
+                ))}
+              </select>
+              {selectedModel && (
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {selectedModel.task ?? '—'} ·{' '}
+                  навчено на {selectedModel.imgsz ?? '?'}пкс ·{' '}
+                  {selectedModel.trained_with_half ? 'FP16' : 'FP32'}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Детекція і трекінг */}
+          <button
+            type="button"
+            className="flex items-center justify-between w-full text-xs font-semibold text-gray-400 py-2 border-t border-gray-700"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+          >
+            <span className="flex items-center gap-2"><Settings size={14} /> Детекція і трекінг</span>
+            {showAdvanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+          {showAdvanced && (
         <div className="space-y-3 bg-[var(--bg-panel)] p-3 rounded-lg border border-gray-800">
           <Slider label="Поріг впевненості детекції" value={config.conf_threshold ?? 0.20} min={0.1} max={0.9} step={0.05} onChange={v => set({ conf_threshold: v })} />
           <Slider label="Поріг впевненості ключових точок" value={config.kp_conf_threshold ?? 0.5} min={0.1} max={0.9} step={0.05} onChange={v => set({ kp_conf_threshold: v })} />
@@ -287,23 +316,25 @@ export default function JobConfigPanel({
       {showViz && (
         <div className="grid grid-cols-2 gap-2 bg-[var(--bg-panel)] p-3 rounded-lg border border-gray-800 text-xs">
           {Object.keys(vizConfig).map(k => (
-            <label key={k} className="flex items-center gap-1.5 cursor-pointer">
+            <label key={k} className="flex items-center gap-1.5 cursor-pointer" title={VIZ_TOOLTIPS[k] ?? ''}>
               <input
                 type="checkbox"
                 checked={(vizConfig as any)[k]}
                 onChange={e => setVizConfig({ ...vizConfig, [k]: e.target.checked })}
                 className="accent-[var(--accent)] rounded"
               />
-              <span className="truncate" title={k}>{VIZ_LABELS[k] ?? k.replace('show_', '')}</span>
+              <span className="truncate border-b border-dashed border-gray-600/50 hover:border-gray-400 pb-0.5">{VIZ_LABELS[k] ?? k.replace('show_', '')}</span>
             </label>
           ))}
+        </div>
+      )}
         </div>
       )}
 
       <button
         disabled={!canStart}
         onClick={onStart}
-        title={!file && !jobId ? 'Оберіть або завантажте відео' : undefined}
+        title={!file && !testVideoName && !jobId ? 'Оберіть або завантажте відео' : undefined}
         className={`btn-primary w-full flex justify-center items-center gap-2 mt-2 ${!canStart ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         {isProcessing
@@ -311,7 +342,7 @@ export default function JobConfigPanel({
           : <><Play size={16} /> Запустити аналіз</>
         }
       </button>
-      {!file && !jobId && !isProcessing && (
+      {!file && !testVideoName && !jobId && !isProcessing && (
         <p className="text-[11px] text-gray-600 text-center -mt-2">Оберіть файл або тестове відео</p>
       )}
     </div>

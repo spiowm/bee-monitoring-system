@@ -11,6 +11,7 @@ from ultralytics import YOLO
 from config import settings
 from services.pipeline import VideoPipeline
 from services.ffmpeg_service import convert_to_h264
+from services.recommendations import generate_recommendations, recommendations_to_dicts
 from db.mongodb import get_db
 
 logger = logging.getLogger(__name__)
@@ -299,6 +300,7 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
         duration = time.time() - start_time
         result = pipeline.get_result(frame_num, duration)
         result["annotated_video_url"] = f"/static/output/{job_id}.mp4"
+        result["recommendations"] = recommendations_to_dicts(generate_recommendations(result))
 
         logger.info(
             f"Job {job_id} done: {frame_num} frames / {duration:.1f}s = "

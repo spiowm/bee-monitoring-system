@@ -1,10 +1,12 @@
 import type { LiveStats, Job } from '../types';
+import EventTicker from './EventTicker';
+import BehaviorLegend from './BehaviorLegend';
 
 const BEHAVIORS = [
   { key: 'foraging',     label: 'Фуражування',  color: 'var(--behavior-foraging)' },
   { key: 'fanning',      label: 'Вентиляція',    color: 'var(--behavior-fanning)' },
-  { key: 'guarding',     label: 'Охорона',       color: 'var(--behavior-guarding)' },
-  { key: 'washboarding', label: 'Вошборд',       color: 'var(--behavior-washboarding)' },
+  { key: 'washboarding', label: 'Полірування',   color: 'var(--behavior-washboarding)' },
+  { key: 'defense',      label: 'Захист',        color: 'var(--behavior-defense)' },
 ] as const;
 
 interface LiveStatsPanelProps {
@@ -19,6 +21,8 @@ export default function LiveStatsPanel({ liveStats, job }: LiveStatsPanelProps) 
   const fps        = liveStats?.current_fps ?? job?.result?.fps_processed ?? 0;
   const poseOk     = liveStats?.pose_confirmed ?? job?.result?.pose_confirmed_events ?? 0;
   const fallback   = liveStats?.fallback_events ?? job?.result?.fallback_events ?? 0;
+  const rejected   = liveStats?.pose_rejected ?? job?.result?.pose_rejected_events ?? 0;
+  const approach   = liveStats?.approach ?? job?.result?.approach_used ?? 'A';
   const net        = totalIn - totalOut;
 
   const behaviorCounts = BEHAVIORS.map(b => ({
@@ -79,7 +83,7 @@ export default function LiveStatsPanel({ liveStats, job }: LiveStatsPanelProps) 
           </div>
 
           {/* Метрики пайплайну */}
-          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+          <div className={`grid ${approach === 'B' ? 'grid-cols-4' : 'grid-cols-3'} gap-2 text-center text-xs`}>
             <div className="bg-[var(--bg-panel)] rounded-lg py-2 px-1 border border-gray-800">
               <div className="text-gray-500 mb-0.5">Кадрів/с</div>
               <div className="font-mono font-semibold text-gray-200">{fps > 0 ? fps.toFixed(1) : '—'}</div>
@@ -92,10 +96,19 @@ export default function LiveStatsPanel({ liveStats, job }: LiveStatsPanelProps) 
               <div className="text-gray-500 mb-0.5">Резерв</div>
               <div className="font-mono font-semibold" style={{ color: 'var(--color-fallback)' }}>{fallback}</div>
             </div>
+            {approach === 'B' && (
+              <div
+                className="bg-[var(--bg-panel)] rounded-lg py-2 px-1 border border-yellow-700/40"
+                title="Перетинів, які Approach A зарахував би, але Approach B відсіяв через невідповідність вектора пози"
+              >
+                <div className="text-gray-500 mb-0.5">Відсіяно</div>
+                <div className="font-mono font-semibold text-yellow-400">{rejected}</div>
+              </div>
+            )}
           </div>
 
           {/* Поведінкові бари */}
-          <div className="flex-grow">
+          <div>
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Поведінка</div>
             <div className="space-y-2.5">
               {behaviorCounts.map(b => (
@@ -116,6 +129,13 @@ export default function LiveStatsPanel({ liveStats, job }: LiveStatsPanelProps) 
                 </div>
               ))}
             </div>
+          </div>
+
+          <BehaviorLegend compact />
+
+          {/* Стрічка подій */}
+          <div className="flex-grow">
+            <EventTicker events={liveStats?.recent_events || []} />
           </div>
         </>
       )}

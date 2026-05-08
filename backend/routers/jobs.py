@@ -4,8 +4,12 @@ import uuid
 import os
 import json
 from datetime import datetime
-from schemas.schemas import ProcessConfig, VizConfig, JobCreateResponse
+from schemas.schemas import (
+    ProcessConfig, VizConfig, JobCreateResponse, EvaluateJobRequest, TestPair,
+)
 from services.video_processor import process_video, request_cancel
+from services.evaluation.evaluator import run_evaluation
+from services.evaluation.gt_loader import list_available_pairs
 from db.mongodb import get_db
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
@@ -78,12 +82,12 @@ async def create_test_job(
     request: TestJobRequest,
     background_tasks: BackgroundTasks
 ):
-    from config import BASE_DIR
-    import shutil
+    from services.evaluation.gt_loader import gt_root
     
-    source_path = BASE_DIR / "data" / "videos" / "test" / request.filename
+    # filename format: "{basename}/video.mp4"
+    source_path = gt_root() / request.filename
     if not source_path.exists():
-        raise HTTPException(status_code=404, detail="Test video not found")
+        raise HTTPException(status_code=404, detail=f"Test video not found: {request.filename}")
         
     job_id = str(uuid.uuid4())
     file_path = str(source_path)
@@ -111,13 +115,70 @@ async def create_test_job(
 
 @router.get("/test/videos")
 async def list_test_videos():
-    from config import BASE_DIR
-    import os
-    test_dir = BASE_DIR / "data" / "videos" / "test"
-    if not test_dir.exists():
+    """Список тестових відео з GT-директорії (для Upload → демо-запис)."""
+    from services.evaluation.gt_loader import gt_root
+    root = gt_root()
+    if not root.exists():
         return []
-    videos = [f for f in os.listdir(test_dir) if f.endswith(('.mp4', '.avi', '.mov'))]
+    videos = []
+    for subdir in sorted(root.iterdir()):
+        if not subdir.is_dir():
+            continue
+        video = subdir / "video.mp4"
+        if video.exists():
+            videos.append(f"{subdir.name}/video.mp4")
     return videos
+
+
+@router.get("/evaluate/test-pairs", response_model=list[TestPair])
+async def list_evaluation_pairs():
+    """Доступні відео+GT пари з GT_DATASET_PATH."""
+    return list_available_pairs()
+
+
+@router.post("/evaluate", response_model=JobCreateResponse)
+async def create_eval_job(
+    request: EvaluateJobRequest,
+    background_tasks: BackgroundTasks,
+):
+    from services.evaluation.gt_loader import gt_paths
+
+    paths = gt_paths(request.gt_basename)
+    video_path = paths["video"]
+    if not video_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"GT-відео для '{request.gt_basename}' не знайдено: {video_path}",
+        )
+
+    job_id = str(uuid.uuid4())
+    file_path = str(video_path)
+
+    db = get_db()
+    job_doc = {
+        "job_id": job_id,
+        "filename": request.gt_basename,
+        "created_at": datetime.utcnow(),
+        "status": "pending",
+        "progress": 0.0,
+        "config": request.config.model_dump(),
+        "viz_config": request.viz_config.model_dump(),
+        "live_stats": {},
+        "result": None,
+        "error": None,
+        "input_path": file_path,
+        "evaluation": None,
+        "gt_basename": request.gt_basename,
+    }
+    await db["jobs"].insert_one(job_doc)
+
+    background_tasks.add_task(
+        run_evaluation,
+        job_id, file_path, request.gt_basename,
+        request.config.model_dump(), request.viz_config.model_dump(),
+    )
+
+    return {"job_id": job_id, "status": "pending"}
 
 @router.delete("/{job_id}")
 async def delete_job(job_id: str):

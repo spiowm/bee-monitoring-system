@@ -10,7 +10,7 @@ from services.annotator import FrameAnnotator
 from services.track_history import TrackHistory
 from services.pipeline_stages import (
     FrameContext, DetectionStage, TrackingStage, TrackUpdateStage,
-    BehaviorStage, CountingStage, AnnotationStage
+    BehaviorStage, DefenseStage, CountingStage, AnnotationStage,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,8 +38,9 @@ class VideoPipeline:
             TrackingStage(tracker),
             TrackUpdateStage(history),
             BehaviorStage(behavior_analyzer),
+            DefenseStage(config),
             CountingStage(counter),
-            AnnotationStage(annotator, counter)
+            AnnotationStage(annotator, counter),
         ]
 
         # Accumulated pipeline state
@@ -49,8 +50,11 @@ class VideoPipeline:
             "total_out": 0,
             "pose_confirmed": 0,
             "fallback_events": 0,
+            "pose_rejected": 0,
             "all_events": [],
-            "behavior_counts": {"foraging": 0, "fanning": 0, "guarding": 0, "washboarding": 0},
+            "rejected_events": [],
+            "defense_events": [],
+            "behavior_counts": {"foraging": 0, "fanning": 0, "washboarding": 0, "defense": 0},
             "current_behaviors": {},
             "active_bees": 0,
             "current_fps": 0.0,
@@ -69,6 +73,7 @@ class VideoPipeline:
         return ctx.annotated_frame
 
     def get_live_stats(self, frame_num: int, total_frames: int) -> dict:
+        all_events = self.pipeline_state["all_events"]
         return {
             "current_frame": frame_num,
             "total_frames": total_frames,
@@ -80,7 +85,9 @@ class VideoPipeline:
             "approach": self.config.get("approach", "A"),
             "pose_confirmed": self.pipeline_state["pose_confirmed"],
             "fallback_events": self.pipeline_state["fallback_events"],
+            "pose_rejected": self.pipeline_state.get("pose_rejected", 0),
             "behavior_counts": self.pipeline_state["behavior_counts"],
+            "recent_events": all_events[-10:] if all_events else [],
         }
 
     def get_result(self, total_frames: int, duration: float) -> dict:
@@ -97,9 +104,12 @@ class VideoPipeline:
             "tracker_used": self.config.get("tracker_name", "bytetrack"),
             "pose_confirmed_events": self.pipeline_state["pose_confirmed"],
             "fallback_events": self.pipeline_state["fallback_events"],
+            "pose_rejected_events": self.pipeline_state.get("pose_rejected", 0),
             "ramp_detected": ramp_bbox is not None,
             "behavior_summary": {
                 f"{k}_detections": v for k, v in self.pipeline_state["behavior_counts"].items()
             },
+            "defense_events": self.pipeline_state.get("defense_events", []),
             "events": self.pipeline_state["all_events"],
+            "rejected_events": self.pipeline_state.get("rejected_events", []),
         }

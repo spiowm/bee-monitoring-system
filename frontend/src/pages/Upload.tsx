@@ -11,10 +11,13 @@ import {
 import type { ProcessConfig, VizConfig, Job, LiveStats } from '../types';
 import JobConfigPanel from '../components/JobConfigPanel';
 import LiveStatsPanel from '../components/LiveStatsPanel';
+import VideoPlayer from '../components/VideoPlayer';
+import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { Video, Download, AlertCircle, Square } from 'lucide-react';
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
+  const [testVideoName, setTestVideoName] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -31,11 +34,11 @@ export default function UploadPage() {
     behavior_guarding_spread_ratio: 1.5,
   } as unknown as ProcessConfig);
 
-  const [vizConfig, setVizConfig] = useState<VizConfig>({
-    show_boxes: true, show_ids: true, show_confidence: true,
-    show_keypoints: true, show_ramp: true, show_behaviors: true,
-    show_counting_line: true, show_stats_overlay: true, show_tracks: true,
-    show_orientation: true, show_recent_events: true
+  const [vizConfig, setVizConfig] = useLocalStorageState<VizConfig>('viz_config_v2', {
+    show_boxes: true, show_ids: true, show_confidence: false,
+    show_keypoints: false, show_ramp: true, show_behaviors: false,
+    show_counting_line: true, show_stats_overlay: false, show_tracks: false,
+    show_orientation: true, show_recent_events: false
   });
 
   const { data: testVideos = [] } = useQuery({
@@ -123,13 +126,16 @@ export default function UploadPage() {
       <div className="w-full lg:w-[320px] shrink-0 space-y-4">
         <JobConfigPanel 
           file={file} setFile={setFile}
+          testVideoName={testVideoName} setTestVideoName={setTestVideoName}
           config={config} setConfig={setConfig}
           vizConfig={vizConfig} setVizConfig={setVizConfig}
           testVideos={testVideos}
           isProcessing={isProcessing}
           jobId={jobId}
-          onStart={() => createJobMut.mutate()}
-          onStartTest={(filename) => createTestJobMut.mutate(filename)}
+          onStart={() => {
+            if (file) createJobMut.mutate();
+            else if (testVideoName) createTestJobMut.mutate(testVideoName);
+          }}
         />
       </div>
 
@@ -137,12 +143,45 @@ export default function UploadPage() {
       <div className="flex-grow flex flex-col gap-4 min-w-0">
         <div className="card flex-grow flex flex-col items-center justify-center p-0 overflow-hidden relative min-h-[400px]">
           {!jobId && !isProcessing && (
-            <div className="text-center text-gray-600 select-none">
-              <div className="w-20 h-20 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center mx-auto mb-4">
-                <Video size={36} className="opacity-30" />
+            <div className="text-center select-none px-6 py-10 max-w-xl">
+              <div className="w-32 h-32 rounded-full border-4 border-dashed border-[var(--accent)]/40 flex items-center justify-center mx-auto mb-6">
+                <Video size={56} className="text-[var(--accent)]/60" />
               </div>
-              <p className="text-sm text-gray-500">Оберіть відео і натисніть</p>
-              <p className="text-xs text-gray-700 mt-1">Запустити аналіз</p>
+              <h2 className="text-3xl font-bold text-gray-100 mb-2">
+                Готові до аналізу?
+              </h2>
+              <p className="text-base text-gray-400 mb-6">
+                Завантажте відеозапис вулика або спробуйте демо-запис
+              </p>
+              {testVideos.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">
+                    Демо-записи
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {testVideos.map(tv => (
+                      <button
+                        key={tv}
+                        onClick={() => {
+                          setTestVideoName(tv);
+                          setFile(null);
+                        }}
+                        disabled={isProcessing}
+                        className={`${testVideoName === tv ? 'bg-[var(--accent)] text-black border-[var(--accent)] shadow-[0_0_15px_var(--accent)]' : 'bg-[var(--accent)]/15 hover:bg-[var(--accent)]/25 text-[var(--accent)] border-[var(--accent)]/40'} py-2.5 px-4 rounded-lg border text-sm font-medium flex items-center gap-2 justify-center transition disabled:opacity-50`}
+                      >
+                        {testVideoName === tv ? '✓ Обрано' : '▶'} {tv}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-3">
+                    або перетягніть свій файл у панель ліворуч
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Перетягніть файл у панель ліворуч і натисніть «Запустити аналіз»
+                </p>
+              )}
             </div>
           )}
 
@@ -172,8 +211,11 @@ export default function UploadPage() {
 
           {job && job.status === 'complete' && job.result && (
             <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
-              <div className="bg-black flex-grow flex items-center justify-center relative">
-                 <video src={`${import.meta.env.VITE_API_URL || window.location.origin}${job.result.annotated_video_url}`} controls className="max-h-full max-w-full" />
+              <div className="bg-black flex-grow flex items-center justify-center relative p-3">
+                 <VideoPlayer
+                   src={`${import.meta.env.VITE_API_URL || window.location.origin}${job.result.annotated_video_url}`}
+                   className="w-full max-w-4xl"
+                 />
               </div>
               <div className="p-4 bg-[var(--bg-panel)] flex justify-between items-center border-t border-gray-800">
                 <div>
