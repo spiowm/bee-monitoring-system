@@ -1,5 +1,6 @@
 from services.orientation import get_orientation_vector, should_count_crossing
 from services.track_history import TrackHistory
+from config import settings
 import logging
 import numpy as np
 
@@ -17,6 +18,9 @@ class TrafficCounter:
         self.angle_threshold_deg = angle_threshold_deg
         # track_id → last counted frame (debounce)
         self.track_counted: dict[int, int] = {}
+        self.track_rejected: dict[int, int] = {}
+        self.debounce = settings.counting_debounce_frames
+        self.debounce_blocks = 0
 
     def get_line_y(self, cx, ramp_bbox, ramp_kpts):
         if ramp_kpts is not None and len(ramp_kpts) >= 2:
@@ -58,11 +62,6 @@ class TrafficCounter:
             if entry is None or len(entry.positions) < 2:
                 continue
 
-            # Debounce
-            if track_id in self.track_counted:
-                if frame_num - self.track_counted[track_id] < 45:
-                    continue
-
             positions = entry.last_n_positions(5)
             prev_pos = positions[-2]
             curr_pos = positions[-1]
@@ -82,12 +81,13 @@ class TrafficCounter:
             method = "trajectory_only"
             angle_deg = None
             valid = True
+            reject_reason = None
 
             metrics = entry.compute_metrics(fps)
             speed_px_per_sec = metrics["current_speed"]
 
             if self.approach == "B":
-                track_dir_vec = np.array(metrics["track_dir_vec"]) if len(positions) >= 3 else np.array(metrics["instant_dir_vec"])
+                track_dir_vec = np.array(metrics["ema_dir_vec"]) if len(positions) >= 2 else np.array(metrics["instant_dir_vec"])
 
                 kp = keypoints_xy[i] if i < len(keypoints_xy) else None
                 orient_vec = get_orientation_vector(kp)
@@ -101,6 +101,8 @@ class TrafficCounter:
 
                     valid = should_count_crossing(track_dir_vec, orient_vec, self.angle_threshold_deg)
                     method = "pose_confirmed" if valid else "rejected"
+                    if not valid:
+                        reject_reason = "angle_mismatch"
                 else:
                     method = "trajectory_fallback"
                     valid = True
@@ -115,15 +117,19 @@ class TrafficCounter:
                 "speed_px_per_sec": float(speed_px_per_sec),
                 "behavior_class": behav,
                 "angle_deg": float(angle_deg) if angle_deg is not None else None,
+                "reject_reason": reject_reason,
             }
 
             if valid and method != "rejected":
+                if track_id in self.track_counted and frame_num - self.track_counted[track_id] < self.debounce:
+                    self.debounce_blocks += 1
+                    continue
                 self.track_counted[track_id] = frame_num
                 events.append(event_payload)
             elif method == "rejected":
-                # Зберігаємо для аналітики «що відсіяв pose-фільтр», але debounce
-                # все одно фіксуємо, щоб одну бджолу не записати кілька разів.
-                self.track_counted[track_id] = frame_num
+                if track_id in self.track_rejected and frame_num - self.track_rejected[track_id] < self.debounce:
+                    continue
+                self.track_rejected[track_id] = frame_num
                 rejected_events.append(event_payload)
 
         return events, rejected_events

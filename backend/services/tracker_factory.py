@@ -8,7 +8,7 @@ class TrackerFactory:
     def create(name: str = "bytetrack", **kwargs):
         defaults = dict(
             track_activation_threshold=0.2,
-            lost_track_buffer=30,
+            lost_track_buffer=60,
             minimum_matching_threshold=0.5,
             minimum_consecutive_frames=1,
         )

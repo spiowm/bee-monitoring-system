@@ -3,7 +3,7 @@ import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
 import {
   AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { Target, Loader2, AlertCircle, Sparkles, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { Target, Loader2, AlertCircle, Sparkles, Info, ChevronDown, ChevronUp, FileDown } from 'lucide-react';
 import {
   listEvaluationPairsJobsEvaluateTestPairsGet,
   createEvalJobJobsEvaluatePost,
@@ -21,7 +21,7 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState';
 const DEFAULT_CONFIG: ProcessConfig = {
   tracker_name: 'bytetrack',
   approach: 'A',
-  line_position: 0.5,
+  line_position: 0.0,
   conf_threshold: 0.2,
   iou_threshold: 0.8,
   max_detections: 1000,
@@ -44,7 +44,7 @@ const DEFAULT_CONFIG: ProcessConfig = {
 const DEFAULT_VIZ: VizConfig = {
   show_boxes: true, show_ids: true, show_confidence: false, show_keypoints: false,
   show_ramp: true, show_behaviors: false, show_counting_line: true,
-  show_stats_overlay: false, show_tracks: false, show_orientation: true,
+  show_stats_overlay: true, show_tracks: false, show_orientation: true,
   show_recent_events: false,
 };
 
@@ -171,8 +171,9 @@ export default function EvaluationPage() {
   const [selectedBasename, setSelectedBasename] = useLocalStorageState<string>('eval_basename', '20230711a-fan_5s');
   const [approach, setApproach] = useLocalStorageState<'A' | 'B' | 'AB'>('eval_approach', 'A');
   const [jobIds, setJobIds] = useState<{ a: string | null; b: string | null }>({ a: null, b: null });
+  const [pendingJobBBody, setPendingJobBBody] = useState<any>(null);
 
-  const isRunning = jobIds.a !== null || jobIds.b !== null;
+  const isRunning = jobIds.a !== null || jobIds.b !== null || pendingJobBBody !== null;
   const isBothMode = approach === 'AB';
 
   const { data: pairs = [] } = useQuery({
@@ -221,17 +222,16 @@ export default function EvaluationPage() {
       };
 
       if (isBothMode) {
-        const [respA, respB] = await Promise.all([
-          createEvalJobJobsEvaluatePost({
-            body: { ...baseBody, config: { ...DEFAULT_CONFIG, approach: 'A' } },
-          }),
-          createEvalJobJobsEvaluatePost({
-            body: { ...baseBody, config: { ...DEFAULT_CONFIG, approach: 'B' } },
-          }),
-        ]);
+        const respA = await createEvalJobJobsEvaluatePost({
+          body: { ...baseBody, config: { ...DEFAULT_CONFIG, approach: 'A' } },
+        });
+        
+        // Keep config for Job B to be launched sequentially
+        setPendingJobBBody({ ...baseBody, config: { ...DEFAULT_CONFIG, approach: 'B' } });
+        
         return {
           jobIdA: (respA.data as { job_id: string }).job_id,
-          jobIdB: (respB.data as { job_id: string }).job_id,
+          jobIdB: null,
         };
       } else {
         const resp = await createEvalJobJobsEvaluatePost({
@@ -248,9 +248,34 @@ export default function EvaluationPage() {
     },
   });
 
-  useEffect(() => { /* polling stops via refetchInterval */ }, [isComplete]);
+  useEffect(() => {
+    // Launch Job B sequentially after Job A completes
+    if (pendingJobBBody && jobA?.status === 'complete' && jobA?.evaluation && !jobIds.b) {
+      const runB = async () => {
+        try {
+          const respB = await createEvalJobJobsEvaluatePost({ body: pendingJobBBody });
+          setJobIds(prev => ({ ...prev, b: (respB.data as { job_id: string }).job_id }));
+          setPendingJobBBody(null);
+        } catch (e) {
+          console.error("Failed to start job B sequentially", e);
+        }
+      };
+      runB();
+    }
+  }, [pendingJobBBody, jobA?.status, jobA?.evaluation, jobIds.b]);
 
-  const reset = () => setJobIds({ a: null, b: null });
+  const reset = () => {
+    setJobIds({ a: null, b: null });
+    setPendingJobBBody(null);
+  };
+
+  const handleDownloadMd = () => {
+    let url = `${import.meta.env.VITE_API_URL || window.location.origin}/analytics/export/md?`;
+    if (jobA) url += `job_a_id=${jobA.job_id}&`;
+    if (jobB) url += `job_b_id=${jobB.job_id}`;
+    
+    window.open(url, '_blank');
+  };
 
   const cumulativeData = useMemo(() => {
     if (!isComplete || !jobA?.evaluation) return [];
@@ -432,9 +457,14 @@ export default function EvaluationPage() {
               <h2 className="text-lg font-bold text-[var(--accent)] flex items-center gap-2">
                 <Sparkles size={18} /> Результати — Метод {approach === 'B' ? 'Б' : 'А'}
               </h2>
-              <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-200 transition">
-                Нове порівняння
-              </button>
+              <div className="flex gap-4">
+                <button onClick={handleDownloadMd} className="text-xs text-gray-400 hover:text-[var(--accent)] transition flex items-center gap-1">
+                  <FileDown size={14} /> Скачати звіт (MD)
+                </button>
+                <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-200 transition">
+                  Нове порівняння
+                </button>
+              </div>
             </div>
             <EvaluationKPICards
               accuracy={jobA.evaluation.accuracy}
@@ -482,9 +512,14 @@ export default function EvaluationPage() {
               <h2 className="text-lg font-bold text-[var(--accent)] uppercase tracking-wider flex items-center gap-2">
                 <Sparkles size={20} /> Порівняння методів
               </h2>
-              <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-200 transition">
-                Нове порівняння
-              </button>
+              <div className="flex gap-4">
+                <button onClick={handleDownloadMd} className="text-xs text-gray-400 hover:text-[var(--accent)] transition flex items-center gap-1">
+                  <FileDown size={14} /> Скачати звіт (MD)
+                </button>
+                <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-200 transition">
+                  Нове порівняння
+                </button>
+              </div>
             </div>
             <ApproachWinnerBars a={jobA.evaluation} b={jobB.evaluation} />
           </div>

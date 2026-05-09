@@ -31,7 +31,19 @@ export interface LiveStats {
   pose_confirmed: number;
   fallback_events: number;
   pose_rejected?: number;
+  reject_reasons?: Record<string, number>;
   behavior_counts: Record<string, number>;
+  timings?: {
+    detection_ms: number;
+    tracking_ms: number;
+    behavior_ms: number;
+    defense_ms: number;
+    counting_ms: number;
+    annotation_ms: number;
+    total_ms: number;
+    model_fps: number;
+    pipeline_fps: number;
+  };
   recent_events?: Array<{
     frame: number;
     timestamp_sec: number;
@@ -55,6 +67,8 @@ export interface JobResult {
   pose_confirmed_events: number;
   fallback_events: number;
   pose_rejected_events?: number;
+  reject_reasons?: Record<string, number>;
+  angle_histogram?: Record<string, number>;
   ramp_detected: boolean;
   annotated_video_url: string;
   behavior_summary: Record<string, number>;

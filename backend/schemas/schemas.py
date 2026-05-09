@@ -5,7 +5,7 @@ from datetime import datetime
 class ProcessConfig(BaseModel):
     tracker_name: str = "bytetrack"
     approach: str = "A"
-    line_position: float = 0.5
+    line_position: float = 0.0
     conf_threshold: float = 0.20
     iou_threshold: float = 0.8
     max_detections: int = 1000
@@ -78,6 +78,9 @@ class LiveStats(BaseModel):
     fallback_events: int = 0
     behavior_counts: Dict[str, int] = {}
     recent_events: List[Dict[str, Any]] = []
+    timings: Optional[Dict[str, float]] = None
+    reject_reasons: Optional[Dict[str, int]] = None
+    angle_histogram: Optional[Dict[str, int]] = None
 
 
 class TestPair(BaseModel):

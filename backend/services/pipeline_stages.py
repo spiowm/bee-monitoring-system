@@ -18,6 +18,16 @@ from services.annotator import FrameAnnotator
 from services.orientation import aligned, get_orientation_vector
 
 @dataclass
+class FrameTimings:
+    detection_ms: float = 0.0
+    tracking_ms: float = 0.0
+    behavior_ms: float = 0.0
+    defense_ms: float = 0.0
+    counting_ms: float = 0.0
+    annotation_ms: float = 0.0
+    total_ms: float = 0.0
+
+@dataclass
 class FrameContext:
     frame: np.ndarray
     frame_num: int
@@ -37,6 +47,7 @@ class FrameContext:
     rejected_events: list = field(default_factory=list)   # відсіяні pose-фільтром у цьому кадрі
     defense_clusters: list = field(default_factory=list)  # активні захисні кластери цього кадру
     annotated_frame: np.ndarray = None
+    timings: FrameTimings = field(default_factory=FrameTimings)
 
 class PipelineStage(ABC):
     @abstractmethod
@@ -44,13 +55,23 @@ class PipelineStage(ABC):
         pass
 
 class DetectionStage(PipelineStage):
-    def __init__(self, bee_model, config):
+    def __init__(self, bee_model, config, gt_entrance_zone=None):
         self.bee_model = bee_model
         self.config = config
         self.ramp_detector = RampDetector()
+        self.gt_entrance_zone = gt_entrance_zone
 
     def process(self, ctx: FrameContext, state: dict):
-        ctx.ramp_bbox, ctx.ramp_kpts = self.ramp_detector.detect(ctx.frame)
+        if self.gt_entrance_zone is not None:
+            # Якщо ми в режимі Evaluation, використовуємо GT полігон як рампу
+            zone = self.gt_entrance_zone
+            x_min, y_min = np.min(zone, axis=0)
+            x_max, y_max = np.max(zone, axis=0)
+            ctx.ramp_bbox = [float(x_min), float(y_min), float(x_max), float(y_max)]
+            # Для entrance_vec нам потрібні хоча б 2 верхні точки. Візьмемо top-left та top-right
+            ctx.ramp_kpts = [zone[0].tolist(), zone[1].tolist(), zone[2].tolist(), zone[3].tolist()]
+        else:
+            ctx.ramp_bbox, ctx.ramp_kpts = self.ramp_detector.detect(ctx.frame)
 
         if ctx.detection_result is not None:
             results = [ctx.detection_result]

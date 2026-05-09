@@ -1,19 +1,18 @@
-# Datasets / large files (may sit at repo root by accident)
-traching_and_behavior/
-tracking_and_behavior/
+# Data & Models
 *.pt
 *.onnx
+*.mp4
+datasets/
+tracking_and_behavior/
+backend/data/
 
-# Python
-__pycache__/
-*.pyc
-.venv/
+# Secrets & Config
 .env
-
-
+.context/
+_context/
 123/
 
-
-# OS
+# Python & OS
+__pycache__/
+.venv/
 .DS_Store
-Thumbs.db

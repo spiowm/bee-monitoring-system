@@ -39,10 +39,10 @@ class TestTrafficCounterApproachA:
         det2 = _make_detections([[90, 70, 110, 90]], [1])    # cy=80
         
         _update_history(history, 1, det1)
-        counter.update(1, det1, RAMP, [], history, {}, 30.0)
+        counter.update(1, det1, RAMP, None, [], history, {}, 30.0)
         
         _update_history(history, 2, det2)
-        events = counter.update(2, det2, RAMP, [], history, {}, 30.0)
+        events, _ = counter.update(2, det2, RAMP, None, [], history, {}, 30.0)
         assert len(events) == 1
         assert events[0]["direction"] == "IN"
 
@@ -53,10 +53,10 @@ class TestTrafficCounterApproachA:
         det2 = _make_detections([[90, 110, 110, 130]], [1])  # cy=120 (below)
         
         _update_history(history, 1, det1)
-        counter.update(1, det1, RAMP, [], history, {}, 30.0)
+        counter.update(1, det1, RAMP, None, [], history, {}, 30.0)
         
         _update_history(history, 2, det2)
-        events = counter.update(2, det2, RAMP, [], history, {}, 30.0)
+        events, _ = counter.update(2, det2, RAMP, None, [], history, {}, 30.0)
         assert len(events) == 1
         assert events[0]["direction"] == "OUT"
 
@@ -67,10 +67,10 @@ class TestTrafficCounterApproachA:
         det2 = _make_detections([[90, 20, 110, 40]], [1])   # cy=30 (still above)
         
         _update_history(history, 1, det1)
-        counter.update(1, det1, RAMP, [], history, {}, 30.0)
+        counter.update(1, det1, RAMP, None, [], history, {}, 30.0)
         
         _update_history(history, 2, det2)
-        events = counter.update(2, det2, RAMP, [], history, {}, 30.0)
+        events, _ = counter.update(2, det2, RAMP, None, [], history, {}, 30.0)
         assert events == []
 
     def test_debounce_prevents_double_count(self):
@@ -83,10 +83,10 @@ class TestTrafficCounterApproachA:
         counter.update(1, det_above, RAMP, [], history, {}, 30.0)
         
         _update_history(history, 2, det_below)
-        events1 = counter.update(2, det_below, RAMP, [], history, {}, 30.0)
+        events1, _ = counter.update(2, det_below, RAMP, None, [], history, {}, 30.0)
         
         _update_history(history, 3, det_above)
-        events2 = counter.update(3, det_above, RAMP, [], history, {}, 30.0)
+        events2, _ = counter.update(3, det_above, RAMP, None, [], history, {}, 30.0)
         assert len(events1) == 1
         assert events2 == []
 
@@ -96,7 +96,7 @@ class TestTrafficCounterApproachA:
         det = _make_detections([[90, 70, 110, 90]], [1])
         
         _update_history(history, 1, det)
-        events = counter.update(1, det, None, [], history, {}, 30.0)
+        events, _ = counter.update(1, det, None, [], history, {}, 30.0)
         assert events == []
 
     def test_empty_detections_no_events(self):
@@ -105,7 +105,7 @@ class TestTrafficCounterApproachA:
         det = sv.Detections.empty()
         
         _update_history(history, 1, det)
-        events = counter.update(1, det, RAMP, [], history, {}, 30.0)
+        events, _ = counter.update(1, det, RAMP, [], history, {}, 30.0)
         assert events == []
 
     def test_multiple_tracks_independent(self):
@@ -115,10 +115,10 @@ class TestTrafficCounterApproachA:
         det2 = _make_detections([[0, 110, 20, 130], [100, 70, 120, 90]], [1, 2])
         
         _update_history(history, 1, det1)
-        counter.update(1, det1, RAMP, [], history, {}, 30.0)
+        counter.update(1, det1, RAMP, None, [], history, {}, 30.0)
         
         _update_history(history, 2, det2)
-        events = counter.update(2, det2, RAMP, [], history, {}, 30.0)
+        events, _ = counter.update(2, det2, RAMP, None, [], history, {}, 30.0)
         directions = {e["track_id"]: e["direction"] for e in events}
         assert directions[1] == "OUT"
         assert directions[2] == "IN"
@@ -130,10 +130,10 @@ class TestTrafficCounterApproachA:
         det2 = _make_detections([[90, 70, 110, 90]], [1])
         
         _update_history(history, 1, det1)
-        counter.update(1, det1, RAMP, [], history, {}, 30.0)
+        counter.update(1, det1, RAMP, None, [], history, {}, 30.0)
         
         _update_history(history, 2, det2)
-        events = counter.update(2, det2, RAMP, [], history, {}, 30.0)
+        events, _ = counter.update(2, det2, RAMP, None, [], history, {}, 30.0)
         e = events[0]
         for key in ("frame", "timestamp_sec", "track_id", "direction", "method", "speed_px_per_sec"):
             assert key in e
@@ -147,11 +147,11 @@ class TestTrafficCounterApproachB:
         det2 = _make_detections([[90, 70, 110, 90]], [1])
         
         _update_history(history, 1, det1)
-        counter.update(1, det1, RAMP, [], history, {}, 30.0)
+        counter.update(1, det1, RAMP, None, [], history, {}, 30.0)
         
         _update_history(history, 2, det2)
         kp = [np.array([[100.0, 60.0], [100.0, 80.0]])]  # head above tail
-        events = counter.update(2, det2, RAMP, kp, history, {}, 30.0)
+        events, _ = counter.update(2, det2, RAMP, None, kp, history, {}, 30.0)
         assert len(events) == 1
         assert events[0]["method"] == "pose_confirmed"
 
@@ -162,11 +162,11 @@ class TestTrafficCounterApproachB:
         det2 = _make_detections([[90, 70, 110, 90]], [1])
         
         _update_history(history, 1, det1)
-        counter.update(1, det1, RAMP, [], history, {}, 30.0)
+        counter.update(1, det1, RAMP, None, [], history, {}, 30.0)
         
         _update_history(history, 2, det2)
         kp = [np.array([[100.0, 80.0], [100.0, 60.0]])]
-        events = counter.update(2, det2, RAMP, kp, history, {}, 30.0)
+        events, _ = counter.update(2, det2, RAMP, None, kp, history, {}, 30.0)
         assert events == []
 
     def test_fallback_when_no_keypoints(self):
@@ -176,9 +176,9 @@ class TestTrafficCounterApproachB:
         det2 = _make_detections([[90, 70, 110, 90]], [1])
         
         _update_history(history, 1, det1)
-        counter.update(1, det1, RAMP, [], history, {}, 30.0)
+        counter.update(1, det1, RAMP, None, [], history, {}, 30.0)
         
         _update_history(history, 2, det2)
-        events = counter.update(2, det2, RAMP, [], history, {}, 30.0)
+        events, _ = counter.update(2, det2, RAMP, None, [], history, {}, 30.0)
         assert len(events) == 1
         assert events[0]["method"] == "trajectory_fallback"

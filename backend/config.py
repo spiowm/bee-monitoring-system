@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     RAMP_DETECT_INTERVAL: int = 60  # кадрів між запусками ramp детектора
     GT_DATASET_PATH: str = str(BASE_DIR.parent / "research" / "datasets" / "raw" / "tracking_and_behavior")
 
+    # Counting logic
+    counting_debounce_frames: int = 45
+    
     class Config:
         env_file = str(BASE_DIR / ".env")
         extra = "ignore"

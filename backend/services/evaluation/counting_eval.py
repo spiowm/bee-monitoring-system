@@ -1,4 +1,5 @@
 """Обчислення GT-подій вліт/виліт і зіставлення з передбаченими подіями."""
+from config import settings
 import numpy as np
 import pandas as pd
 
@@ -64,9 +65,9 @@ def compute_gt_events(
             direction = "OUT" if crossed_down else "IN"
             frame = int(frames[i])
             
-            # Додаємо такий самий debounce (45 кадрів), як у counter.py,
+            # Додаємо такий самий debounce, як у counter.py,
             # щоб не рахувати джиттер (коли бджола сидить на лінії і коливається на 1 піксель)
-            if frame - last_event_frame >= 45:
+            if frame - last_event_frame >= settings.counting_debounce_frames:
                 events.append({
                     "frame": frame,
                     "timestamp_sec": frame / fps,

@@ -164,7 +164,7 @@ def _writer_worker(
         writer.write(item)
 
 
-async def process_video(job_id: str, video_path: str, config: dict, viz_config: dict):
+async def process_video(job_id: str, video_path: str, config: dict, viz_config: dict, gt_entrance_zone=None):
     db = get_db()
     cancel = asyncio.Event()
     _cancel_flags[job_id] = cancel
@@ -176,7 +176,7 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
 
     try:
         bee_model = await get_bee_model(config.get("model_name"))
-        pipeline = VideoPipeline(bee_model, config, viz_config)
+        pipeline = VideoPipeline(bee_model, config, viz_config, gt_entrance_zone=gt_entrance_zone)
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():

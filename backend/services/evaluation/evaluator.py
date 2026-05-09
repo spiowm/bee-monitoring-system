@@ -38,8 +38,18 @@ async def run_evaluation(
         )
         return
 
-    # 2. Запускаємо звичайний пайплайн (детекція + трекінг + counting + анотоване відео).
-    await process_video(job_id, video_path, config, viz_config)
+    # 2. Метаданні відео та GT
+    cap = cv2.VideoCapture(video_path)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
+
+    zone = load_entrance_zone(paths["entrance_zone"])
+
+    # 3. Запускаємо звичайний пайплайн (детекція + трекінг + counting + анотоване відео).
+    await process_video(job_id, video_path, config, viz_config, gt_entrance_zone=zone)
 
     job = await db["jobs"].find_one({"job_id": job_id}, {"_id": 0})
     if not job or job.get("status") != "complete":
@@ -48,14 +58,7 @@ async def run_evaluation(
 
     pred_events = (job.get("result") or {}).get("events", []) or []
 
-    # 3. Метаданні відео для денормалізації GT.
-    cap = cv2.VideoCapture(video_path)
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    cap.release()
-
+    # 4. Денормалізація GT та matching.
     gt_df = denormalize(load_gt_tracks(paths["tracks"]), width, height)
     # Якщо вхідне відео коротше за повне (наприклад трейлер) — обрізати GT.
     gt_full_frames = int(gt_df["frame"].max())
@@ -65,10 +68,8 @@ async def run_evaluation(
             f"Job {job_id}: GT обрізано {gt_full_frames} → {total_frames} кадрів "
             f"({len(gt_df):,} детекцій)"
         )
-    zone = load_entrance_zone(paths["entrance_zone"])
 
-    # 4. GT-події + matching.
-    line_position = float(config.get("line_position", 0.5))
+    line_position = float(config.get("line_position", 0.0))
     gt_events = compute_gt_events(gt_df, zone, fps=fps, line_position=line_position)
     metrics = match_events(gt_events, pred_events, frame_window=15)
     logger.info(
@@ -102,6 +103,11 @@ async def run_evaluation(
     evaluation_doc = {
         **metrics,
         "gt_events": gt_events,
+        "gt_behaviors": {
+            "fanning_tracks": int(gt_df[gt_df['fanning'] == 1]['track_id'].nunique()) if 'fanning' in gt_df.columns else 0,
+            "defense_tracks": int(gt_df[gt_df['defensive'] == 1]['track_id'].nunique()) if 'defensive' in gt_df.columns else 0,
+            "arrival_tracks": int(gt_df[gt_df['arrival'] == 1]['track_id'].nunique()) if 'arrival' in gt_df.columns else 0,
+        },
         "gt_video_url": f"/static/output/{job_id}_gt.mp4",
         "gt_basename": gt_basename,
         "video_resolution": [width, height],

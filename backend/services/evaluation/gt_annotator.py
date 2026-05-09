@@ -100,12 +100,26 @@ def render_gt_video(
 
             # STATS OVERLAY
             overlay = frame.copy()
-            cv2.rectangle(overlay, (width - 220, 40), (width - 10, 120), (0, 0, 0), -1)
+            cv2.rectangle(overlay, (width - 220, 10), (width - 10, 160), (0, 0, 0), -1)
             cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+            
+            cur_for = 0
+            cur_fan = 0
+            cur_def = 0
+            if rows is not None:
+                if 'arrival' in rows.columns: cur_for = int(rows['arrival'].sum())
+                if 'fanning' in rows.columns: cur_fan = int(rows['fanning'].sum())
+                if 'defensive' in rows.columns: cur_def = int(rows['defensive'].sum())
+
             cv2.putText(frame, f"IN: {total_in} | OUT: {total_out}",
-                        (width - 210, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.6, TEXT_COLOR, 1)
+                        (width - 210, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.5, TEXT_COLOR, 1)
             cv2.putText(frame, f"Bees on ramp: {active}",
-                        (width - 210, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.6, TEXT_COLOR, 1)
+                        (width - 210, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, TEXT_COLOR, 1)
+
+            cv2.putText(frame, f"Foraging: {cur_for}", (width - 210, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 200, 100), 1)
+            cv2.putText(frame, f"Fanning: {cur_fan}", (width - 210, 105), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (100, 200, 255), 1)
+            cv2.putText(frame, f"Defense: {cur_def}", (width - 210, 125), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (100, 100, 255), 1)
+            cv2.putText(frame, f"Washboarding: 0", (width - 210, 145), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 100, 200), 1)
 
             writer.write(frame)
 

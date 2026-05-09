@@ -63,6 +63,16 @@ class TrackEntry:
         # Instant vector (last two frames)
         instant_dir = float(pos_np[-1, 0] - pos_np[-2, 0]), float(pos_np[-1, 1] - pos_np[-2, 1])
 
+        # EMA Direction Vector
+        ema_dir_vec = (0.0, 0.0)
+        if len(diffs) > 0:
+            alpha = 0.3
+            ema_x, ema_y = float(diffs[0, 0]), float(diffs[0, 1])
+            for i in range(1, len(diffs)):
+                ema_x = alpha * float(diffs[i, 0]) + (1 - alpha) * ema_x
+                ema_y = alpha * float(diffs[i, 1]) + (1 - alpha) * ema_y
+            ema_dir_vec = (ema_x, ema_y)
+
         # Maximum displacement from the first window position (для Fanning Dfan)
         first = pos_np[0]
         max_displacement = float(np.max(np.linalg.norm(pos_np - first, axis=1)))
@@ -86,6 +96,7 @@ class TrackEntry:
             "spread_y": spread_y,
             "track_dir_vec": track_dir_vec,
             "instant_dir_vec": instant_dir,
+            "ema_dir_vec": ema_dir_vec,
             "max_displacement": max_displacement,
             "zero_cross_rate": zero_cross_rate,
         }

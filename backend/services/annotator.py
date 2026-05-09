@@ -159,13 +159,24 @@ class FrameAnnotator:
         # 9. STATS OVERLAY
         if self.viz_config.get("show_stats_overlay", True):
             overlay = annotated_frame.copy()
-            cv2.rectangle(overlay, (w - 220, 10), (w - 10, 90), (0, 0, 0), -1)
+            cv2.rectangle(overlay, (w - 220, 10), (w - 10, 160), (0, 0, 0), -1)
             cv2.addWeighted(overlay, 0.6, annotated_frame, 0.4, 0, annotated_frame)
             cv2.putText(annotated_frame,
                         f"IN: {stats_state.get('total_in', 0)} | OUT: {stats_state.get('total_out', 0)}",
-                        (w - 210, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+                        (w - 210, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             active = len(tracked_detections.tracker_id) if tracked_detections.tracker_id is not None else 0
             cv2.putText(annotated_frame, f"Bees on ramp: {active}",
-                        (w - 210, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+                        (w - 210, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+            # Поточні поведінкові стани
+            cur_for = sum(1 for b in (behaviors or {}).values() if b == "foraging")
+            cur_fan = sum(1 for b in (behaviors or {}).values() if b == "fanning")
+            cur_pol = sum(1 for b in (behaviors or {}).values() if b == "washboarding")
+            cur_def = sum(1 for b in (behaviors or {}).values() if b == "defense")
+
+            cv2.putText(annotated_frame, f"Foraging: {cur_for}", (w - 210, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 200, 100), 1)
+            cv2.putText(annotated_frame, f"Fanning: {cur_fan}", (w - 210, 105), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (100, 200, 255), 1)
+            cv2.putText(annotated_frame, f"Defense: {cur_def}", (w - 210, 125), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (100, 100, 255), 1)
+            cv2.putText(annotated_frame, f"Washboarding: {cur_pol}", (w - 210, 145), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 100, 200), 1)
 
         return annotated_frame
