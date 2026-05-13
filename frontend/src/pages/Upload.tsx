@@ -141,7 +141,7 @@ export default function UploadPage() {
 
       {/* 2. CENTER COLUMN: Video Player */}
       <div className="flex-grow flex flex-col gap-4 min-w-0">
-        <div className="card flex-grow flex flex-col items-center justify-center p-0 overflow-hidden relative min-h-[400px]">
+        <div className={`card flex flex-col items-center p-0 overflow-hidden relative min-h-[400px] ${(!job || job.status !== 'complete') ? 'flex-grow justify-center' : 'justify-start'}`}>
           {!jobId && !isProcessing && (
             <div className="text-center select-none px-6 py-10 max-w-xl">
               <div className="w-32 h-32 rounded-full border-4 border-dashed border-[var(--accent)]/40 flex items-center justify-center mx-auto mb-6">
@@ -210,8 +210,8 @@ export default function UploadPage() {
           )}
 
           {job && job.status === 'complete' && job.result && (
-            <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
-              <div className="bg-black flex-grow flex items-center justify-center relative p-3">
+            <div className="w-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
+              <div className="w-full flex justify-center relative">
                  <VideoPlayer
                    src={`${import.meta.env.VITE_API_URL || window.location.origin}${job.result.annotated_video_url}`}
                    className="w-full max-w-4xl"

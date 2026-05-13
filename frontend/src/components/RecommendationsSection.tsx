@@ -1,4 +1,5 @@
-import { Lightbulb, AlertTriangle, AlertCircle, Info } from 'lucide-react';
+import { useState } from 'react';
+import { Lightbulb, AlertTriangle, AlertCircle, Info, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Recommendation } from '../types';
 
 interface Props {
@@ -34,6 +35,33 @@ const SEVERITY_STYLES: Record<Recommendation['severity'], {
 const SEVERITY_ORDER: Record<Recommendation['severity'], number> = {
   critical: 0, warning: 1, info: 2,
 };
+
+function DetailsBadge({ details }: { details?: Record<string, number | string> | null }) {
+  const [open, setOpen] = useState(false);
+  if (!details || Object.keys(details).length === 0) return null;
+
+  return (
+    <div className="mt-1.5">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-300 transition-colors"
+      >
+        {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+        Деталі
+      </button>
+      {open && (
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-mono text-gray-500">
+          {Object.entries(details).map(([k, v]) => (
+            <span key={k}>
+              <span className="text-gray-600">{k}:</span>{' '}
+              <span className="text-gray-300">{typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(3)) : v}</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function RecommendationsSection({ recommendations }: Props) {
   const recs = (recommendations ?? []).slice().sort(
@@ -72,12 +100,18 @@ export default function RecommendationsSection({ recommendations }: Props) {
                         <SevIcon size={10} />
                         {style.label}
                       </span>
+                      {r.rule_id && (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 border border-gray-700">
+                          {r.rule_id}
+                        </span>
+                      )}
                       <span className="text-sm font-semibold text-gray-100">{r.title}</span>
                     </div>
                     <p className="text-xs text-gray-300 mt-1 leading-relaxed">{r.description}</p>
                     {r.action && (
                       <p className="text-xs italic text-gray-400 mt-1">→ {r.action}</p>
                     )}
+                    <DetailsBadge details={r.details} />
                   </div>
                 </div>
               </div>

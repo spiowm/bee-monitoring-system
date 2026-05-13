@@ -7,17 +7,20 @@ from typing import Optional
 class TrackEntry:
     positions: list = field(default_factory=list)   # [(cx, cy), ...]
     frames: list = field(default_factory=list)       # [frame_num, ...]
+    motion_intensity: list = field(default_factory=list)  # TEM-like motion score per frame
     behavior: Optional[str] = None
 
     # Max positions to keep (longest consumer is BehaviorAnalyzer: 150)
     _MAX_LEN: int = 150
 
-    def append(self, cx: float, cy: float, frame_num: int):
+    def append(self, cx: float, cy: float, frame_num: int, motion: float = 0.0):
         self.positions.append((cx, cy))
         self.frames.append(frame_num)
+        self.motion_intensity.append(motion)
         if len(self.positions) > self._MAX_LEN:
             self.positions.pop(0)
             self.frames.pop(0)
+            self.motion_intensity.pop(0)
 
     def last_n_positions(self, n: int) -> list:
         return self.positions[-n:]
@@ -89,6 +92,11 @@ class TrackEntry:
                 crossings = int(np.sum(signs[:-1] != signs[1:]))
                 zero_cross_rate = crossings / duration_sec
 
+        # TEM-like motion intensity stats
+        mi = np.array(self.motion_intensity) if self.motion_intensity else np.array([0.0])
+        avg_motion_intensity = float(np.mean(mi))
+        motion_intensity_std = float(np.std(mi))
+
         return {
             "avg_speed": avg_speed,
             "current_speed": current_speed,
@@ -99,6 +107,8 @@ class TrackEntry:
             "ema_dir_vec": ema_dir_vec,
             "max_displacement": max_displacement,
             "zero_cross_rate": zero_cross_rate,
+            "avg_motion_intensity": avg_motion_intensity,
+            "motion_intensity_std": motion_intensity_std,
         }
 
 
@@ -111,10 +121,10 @@ class TrackHistory:
     def __init__(self):
         self._tracks: dict[int, TrackEntry] = {}
 
-    def update(self, track_id: int, cx: float, cy: float, frame_num: int):
+    def update(self, track_id: int, cx: float, cy: float, frame_num: int, motion: float = 0.0):
         if track_id not in self._tracks:
             self._tracks[track_id] = TrackEntry()
-        self._tracks[track_id].append(cx, cy, frame_num)
+        self._tracks[track_id].append(cx, cy, frame_num, motion)
 
     def prune_stale(self, current_frame: int, max_age: int = 60):
         """Remove tracks not seen for max_age frames."""

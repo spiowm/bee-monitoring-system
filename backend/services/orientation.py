@@ -84,6 +84,15 @@ def aligned(vec_a, vec_b, max_angle_deg: float) -> bool:
     return angle_deg <= max_angle_deg
 
 
+def aligned_strict(vec_a, vec_b, max_angle_deg: float) -> bool:
+    """Як aligned(), але повертає False коли один з векторів None (без fallback)."""
+    if vec_a is None or vec_b is None:
+        return False
+    dot = float(np.clip(np.dot(vec_a, vec_b), -1.0, 1.0))
+    angle_deg = float(np.degrees(np.arccos(dot)))
+    return angle_deg <= max_angle_deg
+
+
 def get_angular_error(pred_vec, gt_vec):
     """
     Для evaluation — кутова похибка між передбаченим і GT вектором.

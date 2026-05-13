@@ -17,6 +17,7 @@ const BEHAVIOR_COLORS: Record<string, string> = {
   fanning: '#63b3ed',
   guarding: '#f0b429',
   washboarding: '#a0aec0',
+  unknown: '#6b7280',
 };
 
 const TOOLTIP_STYLE = {

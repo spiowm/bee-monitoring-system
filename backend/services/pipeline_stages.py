@@ -15,7 +15,8 @@ from services.track_history import TrackHistory
 from services.counter import TrafficCounter
 from services.behavior import BehaviorAnalyzer
 from services.annotator import FrameAnnotator
-from services.orientation import aligned, get_orientation_vector
+from services.orientation import aligned, aligned_strict, get_orientation_vector
+from services.temporal_motion import compute_crop_motion
 
 @dataclass
 class FrameTimings:
@@ -191,12 +192,23 @@ class TrackUpdateStage(PipelineStage):
         self.history = history
         
     def process(self, ctx: FrameContext, state: dict):
+        prev_frame = state.get("prev_frame")
         if ctx.tracked_detections.tracker_id is not None:
             for i, track_id in enumerate(ctx.tracked_detections.tracker_id):
                 xyxy = ctx.tracked_detections.xyxy[i]
                 cx, cy = (xyxy[0] + xyxy[2]) / 2, (xyxy[1] + xyxy[3]) / 2
-                self.history.update(track_id, cx, cy, ctx.frame_num)
+
+                # TEM-like motion intensity per bee crop
+                motion = 0.0
+                if prev_frame is not None:
+                    try:
+                        motion = compute_crop_motion(prev_frame, ctx.frame, tuple(xyxy))
+                    except Exception:
+                        pass
+
+                self.history.update(track_id, cx, cy, ctx.frame_num, motion)
         self.history.prune_stale(ctx.frame_num)
+        state["prev_frame"] = ctx.frame
 
 
 class BehaviorStage(PipelineStage):
@@ -236,9 +248,9 @@ class DefenseStage(PipelineStage):
     def __init__(self, config: dict | None = None):
         config = config or {}
         self.radius_factor = float(config.get("defense_radius_factor", 2.0))
-        self.angle_deg = float(config.get("defense_angle_deg", 45.0))
-        self.min_defenders = int(config.get("defense_min_defenders", 2))
-        self.duration_sec = float(config.get("defense_duration_sec", 1.0))
+        self.angle_deg = float(config.get("defense_angle_deg", 30.0))      # було 45
+        self.min_defenders = int(config.get("defense_min_defenders", 3))    # було 2
+        self.duration_sec = float(config.get("defense_duration_sec", 2.0))  # було 1.0
         # thief_track_id -> кількість послідовних кадрів виявлення
         self.cluster_history: dict[int, int] = {}
 
@@ -278,7 +290,7 @@ class DefenseStage(PipelineStage):
                 if dist > radius or dist < 1e-6:
                     continue
                 vec_unit = vec_ij / dist
-                if aligned(body_vecs[j], vec_unit, self.angle_deg):
+                if aligned_strict(body_vecs[j], vec_unit, self.angle_deg):
                     defenders.append(ids[j])
             if len(defenders) >= self.min_defenders:
                 active_clusters[ids[i]] = {

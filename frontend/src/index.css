@@ -18,6 +18,7 @@
     --behavior-fanning: #63b3ed;
     --behavior-washboarding: #f0b429;
     --behavior-defense: #ef4444;
+    --behavior-unknown: #6b7280;
     --behavior-guarding: #f0b429; /* legacy alias for old jobs */
   }
   body {

@@ -14,6 +14,8 @@ class Recommendation:
     title: str             # коротке формулювання
     description: str       # пояснення для пасічника
     action: str | None     # дієва порада ("Перевірте температуру вулика")
+    rule_id: str = ""      # ідентифікатор правила для UI прозорості
+    details: dict | None = None  # числові дані що спровокували рекомендацію
 
 
 # Усі пороги вкорінюються в `recomends.md` + експертну інтерпретацію PLOS ONE 2025.
@@ -91,6 +93,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 "що колонія перебуває під атакою (оси, бджоли-крадії) або в стресі."
             ),
             action="Огляньте льоток, зменшіть отвір, перевірте на наявність ос поблизу.",
+            rule_id="defense_critical",
+            details={"defense_count": defense, "threshold": _DEF_CRITICAL_THRESHOLD},
         ))
     elif defense >= _DEF_WARNING_THRESHOLD:
         recs.append(Recommendation(
@@ -102,6 +106,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 "Це може бути спроба нападу або стресова реакція."
             ),
             action="Поспостерігайте за льотком найближчим часом, виявіть джерело загрози.",
+            rule_id="defense_warning",
+            details={"defense_count": defense, "threshold": _DEF_WARNING_THRESHOLD},
         ))
 
     # 3–4. Fanning intensity
@@ -116,6 +122,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 "охолоджує гніздо, що зазвичай означає високу температуру всередині."
             ),
             action="Перевірте температуру вулика, забезпечте тінь і доступ до води.",
+            rule_id="fanning_critical",
+            details={"fanning_ratio": round(fan_ratio, 3), "fanning_count": fanning, "total_behavior": total_behavior, "threshold": _FAN_CRITICAL_RATIO},
         ))
     elif fan_ratio >= _FAN_WARN_RATIO:
         recs.append(Recommendation(
@@ -127,6 +135,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 "температуру/вологість, а також може поширювати феромони."
             ),
             action="Якщо триває довго — перевірте температуру і вологість всередині вулика.",
+            rule_id="fanning_warning",
+            details={"fanning_ratio": round(fan_ratio, 3), "fanning_count": fanning, "total_behavior": total_behavior, "threshold": _FAN_WARN_RATIO},
         ))
 
     # 5. Дисбаланс трафіку (можливе роєння або проблема з маткою)
@@ -145,6 +155,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                     "на видобуток ресурсів далеко від вулика."
                 ),
                 action="Огляньте розплід і королеву, спостережіть за льотком наступні кілька днів.",
+                rule_id="traffic_imbalance",
+                details={"total_in": total_in, "total_out": total_out, "balance": round(balance, 3), "threshold": _TRAFFIC_BALANCE_WARN_RATIO},
             ))
 
     # 6. Масовий вилет
@@ -159,6 +171,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 "індикатор роєння або раптової міграції колонії."
             ),
             action="Терміново перевірте вулик — можливе роєння або зникнення матки.",
+            rule_id="mass_departure",
+            details={"net_out": net_out, "total_in": total_in, "total_out": total_out, "threshold": _NET_OUT_CRITICAL},
         ))
 
     # 7–8. Foraging activity
@@ -173,6 +187,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 "достатня, погода сприятлива, колонія ефективно збирає нектар і пилок."
             ),
             action=None,
+            rule_id="foraging_high",
+            details={"foraging_per_min": round(foraging_per_min, 2), "threshold": _FOR_HIGH_PER_MIN},
         ))
     elif foraging_per_min < _FOR_LOW_PER_MIN and duration_min > 1:
         recs.append(Recommendation(
@@ -184,6 +200,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 "негода, дефіцит цвітіння поблизу або період між хабарами."
             ),
             action="За тривалого зниження — розгляньте підгодівлю або перенесення вулика.",
+            rule_id="foraging_low",
+            details={"foraging_per_min": round(foraging_per_min, 2), "threshold": _FOR_LOW_PER_MIN},
         ))
 
     # 9. Загальна активність
@@ -198,6 +216,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 "та не плохий день — можливо колонія слабка або у стані стресу."
             ),
             action="Зважте вулик і перевірте загальний стан розплоду.",
+            rule_id="traffic_low",
+            details={"traffic_per_min": round(traffic_per_min, 2), "threshold": _TRAFFIC_LOW_PER_MIN},
         ))
 
     # 10. Pose-валідація (тільки для Approach B)
@@ -215,6 +235,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                     "або погана позиція камери."
                 ),
                 action="Перевірте кут камери, освітлення і фокус.",
+                rule_id="pose_quality_low",
+                details={"pose_ratio": round(pose_ratio, 3), "pose_ok": pose_ok, "pose_total": pose_total, "threshold": _POSE_LOW_RATIO},
             ))
 
         # 10b. Ефективність pose-фільтра — скільки фейкових перетинів відсіяно
@@ -232,6 +254,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                         "Це показник, наскільки точніший метод Б на цьому відео."
                     ),
                     action=None,
+                    rule_id="pose_filter_efficiency",
+                    details={"rejected_ratio": round(rejected_ratio, 3), "rejected": pose_rejected, "a_total": a_total},
                 ))
 
     # 11. Washboarding
@@ -246,6 +270,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 "Це поведінка догляду за чистотою; не вимагає втручання."
             ),
             action=None,
+            rule_id="washboarding_high",
+            details={"wash_ratio": round(wash_ratio, 3), "washboarding_count": washboarding, "total_behavior": total_behavior, "threshold": _WASH_HIGH_RATIO},
         ))
 
     # 12. Льоток не виявлено
@@ -259,6 +285,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 "та поведінки можуть бути ненадійними."
             ),
             action="Перевірте позицію камери: льоток має бути добре видно у кадрі.",
+            rule_id="ramp_not_detected",
+            details=None,
         ))
 
     return recs

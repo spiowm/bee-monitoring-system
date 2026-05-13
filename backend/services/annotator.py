@@ -121,11 +121,12 @@ class FrameAnnotator:
 
                 # BEHAVIOR LABELS
                 if self.viz_config.get("show_behaviors", True) and behaviors and track_id in behaviors:
-                    b_mapped = {"foraging": "FOR", "fanning": "FAN", "washboarding": "POL", "defense": "DEF"}
+                    b_mapped = {"foraging": "FOR", "fanning": "FAN", "washboarding": "POL", "defense": "DEF", "unknown": "?"}
                     b_lbl = b_mapped.get(behaviors[track_id], "")
                     if b_lbl:
+                        lbl_color = (120, 120, 120) if behaviors[track_id] == "unknown" else (255, 255, 255)
                         cv2.putText(annotated_frame, b_lbl, (bx1, by2 + 15),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, lbl_color, 1)
 
                 # KEYPOINTS & ORIENTATION
                 kp = keypoints_xy[i] if i < len(keypoints_xy) else None

@@ -54,7 +54,7 @@ class VideoPipeline:
             "all_events": [],
             "rejected_events": [],
             "defense_events": [],
-            "behavior_counts": {"foraging": 0, "fanning": 0, "washboarding": 0, "defense": 0},
+            "behavior_counts": {"foraging": 0, "fanning": 0, "washboarding": 0, "defense": 0, "unknown": 0},
             "current_behaviors": {},
             "active_bees": 0,
             "current_fps": 0.0,

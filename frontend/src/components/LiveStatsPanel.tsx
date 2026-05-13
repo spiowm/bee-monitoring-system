@@ -10,6 +10,7 @@ const BEHAVIORS = [
   { key: 'fanning',      label: 'Вентиляція',    color: 'var(--behavior-fanning)' },
   { key: 'washboarding', label: 'Полірування',   color: 'var(--behavior-washboarding)' },
   { key: 'defense',      label: 'Захист',        color: 'var(--behavior-defense)' },
+  { key: 'unknown',      label: 'Невизначено',   color: 'var(--behavior-unknown)' },
 ] as const;
 
 interface LiveStatsPanelProps {

@@ -84,6 +84,8 @@ export interface Recommendation {
   title: string;
   description: string;
   action: string | null;
+  rule_id?: string;
+  details?: Record<string, number | string> | null;
 }
 
 export interface DefenseEvent {

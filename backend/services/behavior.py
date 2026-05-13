@@ -13,6 +13,7 @@ import numpy as np
 from services.track_history import TrackHistory
 from services.orientation import (
     aligned,
+    aligned_strict,
     get_orientation_vector,
     vector_to_entrance,
 )
@@ -34,9 +35,12 @@ class HeuristicBehaviorStrategy(BehaviorStrategy):
     """
     Класифікує per-track поведінку згідно з PLOS ONE 2025 (Table 1):
 
-      Foraging:    Vfor > 100 px/s, Tfor > 0.1 s, motion vec до льотка ±60°
-      Fanning:     Dfan < 10 px, Tfan > 1 s, body vec до льотка ±90°
-      Washboarding: Vwash < 60 px/s, Twash > 2 s, ZCR прискорення > 2 Hz
+      Foraging:     Vfor > 100 px/s, motion vec до льотка ±60°
+      Fanning:      Dfan < 10 px, Tfan > 1 s, body vec до льотка ±90° (strict!),
+                    avg_speed < 20 px/s, motion_intensity > 0.05
+      Washboarding: 5 < Vwash < 60 px/s, Twash > 2 s, ZCR > 3 Hz,
+                    displacement < 40 px, body ≈ до льотка ±120°
+      Unknown:      достатньо історії, але жоден патерн не підходить
 
     Defense НЕ класифікується тут — це робота `DefenseStage`.
     """
@@ -52,14 +56,21 @@ class HeuristicBehaviorStrategy(BehaviorStrategy):
         self.fanning_max_displacement_px = float(
             config.get("behavior_fanning_max_displacement_px", 10.0)
         )
+        self.fanning_speed_max = float(config.get("behavior_fanning_speed_max", 20.0))
         self.fanning_duration_min = float(config.get("behavior_fanning_duration_min", 1.0))
         self.fanning_angle_deg = float(config.get("behavior_fanning_angle_deg", 90.0))
+        self.fanning_motion_min = float(config.get("behavior_fanning_motion_min", 0.05))
         # Washboarding
+        self.washboarding_speed_min = float(config.get("behavior_washboarding_speed_min", 5.0))
         self.washboarding_speed_max = float(config.get("behavior_washboarding_speed_max", 60.0))
+        self.washboarding_max_disp = float(config.get("behavior_washboarding_max_disp", 40.0))
         self.washboarding_duration_min = float(
             config.get("behavior_washboarding_duration_min", 2.0)
         )
-        self.washboarding_zcr_min = float(config.get("behavior_washboarding_zcr_min", 2.0))
+        self.washboarding_zcr_min = float(config.get("behavior_washboarding_zcr_min", 3.0))
+        self.washboarding_body_angle_deg = float(
+            config.get("behavior_washboarding_body_angle_deg", 120.0)
+        )
 
     def analyze(
         self,
@@ -80,6 +91,7 @@ class HeuristicBehaviorStrategy(BehaviorStrategy):
             duration_sec = len(entry.positions) / fps
             max_disp = metrics["max_displacement"]
             zcr = metrics["zero_cross_rate"]
+            avg_motion = metrics.get("avg_motion_intensity", 0.0)
 
             # Поточна позиція і вектори
             cx, cy = entry.positions[-1]
@@ -101,21 +113,30 @@ class HeuristicBehaviorStrategy(BehaviorStrategy):
             ):
                 behavior = "foraging"
 
-            # 2. Fanning: майже нерухома, тривала, орієнтована до льотка ±Afan
+            # 2. Fanning: нерухома, тривала, з РЕАЛЬНОЮ позою до льотка, високий motion
             elif (
                 max_disp < self.fanning_max_displacement_px
+                and avg_speed < self.fanning_speed_max
                 and duration_sec > self.fanning_duration_min
-                and aligned(body_vec, entrance_vec, self.fanning_angle_deg)
+                and aligned_strict(body_vec, entrance_vec, self.fanning_angle_deg)
+                and avg_motion >= self.fanning_motion_min
             ):
                 behavior = "fanning"
 
-            # 3. Washboarding: середня швидкість + тривалість + періодичність прискорення
+            # 3. Washboarding: ритмічні рухи, обмежена швидкість і displacement
             elif (
-                avg_speed < self.washboarding_speed_max
+                avg_speed > self.washboarding_speed_min
+                and avg_speed < self.washboarding_speed_max
+                and max_disp < self.washboarding_max_disp
                 and duration_sec > self.washboarding_duration_min
                 and zcr > self.washboarding_zcr_min
+                and aligned_strict(body_vec, entrance_vec, self.washboarding_body_angle_deg)
             ):
                 behavior = "washboarding"
+
+            # 4. Unknown: достатньо даних, але жоден патерн не підходить
+            else:
+                behavior = "unknown"
 
             entry.behavior = behavior
             behaviors[track_id] = behavior
