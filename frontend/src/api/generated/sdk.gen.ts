@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { CompareApproachesAnalyticsCompareApproachesGetData, CompareApproachesAnalyticsCompareApproachesGetResponses, CreateEvalJobJobsEvaluatePostData, CreateEvalJobJobsEvaluatePostErrors, CreateEvalJobJobsEvaluatePostResponses, CreateJobJobsPostData, CreateJobJobsPostErrors, CreateJobJobsPostResponses, CreateTestJobJobsTestPostData, CreateTestJobJobsTestPostErrors, CreateTestJobJobsTestPostResponses, DeleteJobJobsJobIdDeleteData, DeleteJobJobsJobIdDeleteErrors, DeleteJobJobsJobIdDeleteResponses, GetJobJobsJobIdGetData, GetJobJobsJobIdGetErrors, GetJobJobsJobIdGetResponses, GetJobLiveStatsJobsJobIdLiveGetData, GetJobLiveStatsJobsJobIdLiveGetErrors, GetJobLiveStatsJobsJobIdLiveGetResponses, GetSummaryAnalyticsSummaryGetData, GetSummaryAnalyticsSummaryGetResponses, ListEvaluationPairsJobsEvaluateTestPairsGetData, ListEvaluationPairsJobsEvaluateTestPairsGetResponses, ListJobsJobsGetData, ListJobsJobsGetResponses, ListModelsModelsGetData, ListModelsModelsGetResponses, ListTestVideosJobsTestVideosGetData, ListTestVideosJobsTestVideosGetResponses } from './types.gen';
+import type { CompareApproachesAnalyticsCompareApproachesGetData, CompareApproachesAnalyticsCompareApproachesGetResponses, CreateEvalJobJobsEvaluatePostData, CreateEvalJobJobsEvaluatePostErrors, CreateEvalJobJobsEvaluatePostResponses, CreateJobJobsPostData, CreateJobJobsPostErrors, CreateJobJobsPostResponses, CreateTestJobJobsTestPostData, CreateTestJobJobsTestPostErrors, CreateTestJobJobsTestPostResponses, DeleteJobJobsJobIdDeleteData, DeleteJobJobsJobIdDeleteErrors, DeleteJobJobsJobIdDeleteResponses, ExportMdReportAnalyticsExportMdGetData, ExportMdReportAnalyticsExportMdGetErrors, ExportMdReportAnalyticsExportMdGetResponses, GetJobJobsJobIdGetData, GetJobJobsJobIdGetErrors, GetJobJobsJobIdGetResponses, GetJobLiveStatsJobsJobIdLiveGetData, GetJobLiveStatsJobsJobIdLiveGetErrors, GetJobLiveStatsJobsJobIdLiveGetResponses, GetSummaryAnalyticsSummaryGetData, GetSummaryAnalyticsSummaryGetResponses, ListEvaluationPairsJobsEvaluateTestPairsGetData, ListEvaluationPairsJobsEvaluateTestPairsGetResponses, ListJobsJobsGetData, ListJobsJobsGetResponses, ListModelsModelsGetData, ListModelsModelsGetResponses, ListTestVideosJobsTestVideosGetData, ListTestVideosJobsTestVideosGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -74,6 +74,8 @@ export const createTestJobJobsTestPost = <ThrowOnError extends boolean = false>(
 
 /**
  * List Test Videos
+ *
+ * Список тестових відео з GT-директорії (для Upload → демо-запис).
  */
 export const listTestVideosJobsTestVideosGet = <ThrowOnError extends boolean = false>(options?: Options<ListTestVideosJobsTestVideosGetData, ThrowOnError>) => (options?.client ?? client).get<ListTestVideosJobsTestVideosGetResponses, unknown, ThrowOnError>({
     responseType: 'json',
@@ -84,7 +86,7 @@ export const listTestVideosJobsTestVideosGet = <ThrowOnError extends boolean = f
 /**
  * List Evaluation Pairs
  *
- * Доступні відео+GT пари з research/datasets/raw/tracking_and_behavior/.
+ * Доступні відео+GT пари з GT_DATASET_PATH.
  */
 export const listEvaluationPairsJobsEvaluateTestPairsGet = <ThrowOnError extends boolean = false>(options?: Options<ListEvaluationPairsJobsEvaluateTestPairsGetData, ThrowOnError>) => (options?.client ?? client).get<ListEvaluationPairsJobsEvaluateTestPairsGetResponses, unknown, ThrowOnError>({
     responseType: 'json',
@@ -111,6 +113,17 @@ export const createEvalJobJobsEvaluatePost = <ThrowOnError extends boolean = fal
 export const getJobLiveStatsJobsJobIdLiveGet = <ThrowOnError extends boolean = false>(options: Options<GetJobLiveStatsJobsJobIdLiveGetData, ThrowOnError>) => (options.client ?? client).get<GetJobLiveStatsJobsJobIdLiveGetResponses, GetJobLiveStatsJobsJobIdLiveGetErrors, ThrowOnError>({
     responseType: 'json',
     url: '/jobs/{job_id}/live',
+    ...options
+});
+
+/**
+ * Export Md Report
+ *
+ * Generates a detailed Markdown report comparing up to two evaluated jobs.
+ */
+export const exportMdReportAnalyticsExportMdGet = <ThrowOnError extends boolean = false>(options?: Options<ExportMdReportAnalyticsExportMdGetData, ThrowOnError>) => (options?.client ?? client).get<ExportMdReportAnalyticsExportMdGetResponses, ExportMdReportAnalyticsExportMdGetErrors, ThrowOnError>({
+    responseType: 'text',
+    url: '/analytics/export/md',
     ...options
 });
 

@@ -16,6 +16,7 @@ import SideBySideVideoPlayer from '../components/SideBySideVideoPlayer';
 import type { VideoSource } from '../components/SideBySideVideoPlayer';
 import ApproachWinnerBars from '../components/ApproachWinnerBars';
 import DetailedMetricsTable from '../components/DetailedMetricsTable';
+import BehaviorEvalResults from '../components/BehaviorEvalResults';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 
 const DEFAULT_CONFIG: ProcessConfig = {
@@ -70,7 +71,7 @@ interface JobDoc {
   job_id: string;
   status: string;
   progress: number;
-  result?: { events?: PredEvent[]; annotated_video_url?: string };
+  result?: { events?: PredEvent[]; annotated_video_url?: string; fps_processed?: number };
   evaluation?: EvaluationDoc;
   error?: string;
   config?: ProcessConfig;
@@ -170,6 +171,8 @@ function GtInfoPanel() {
 export default function EvaluationPage() {
   const [selectedBasename, setSelectedBasename] = useLocalStorageState<string>('eval_basename', '20230711a-fan_5s');
   const [approach, setApproach] = useLocalStorageState<'A' | 'B' | 'AB'>('eval_approach', 'A');
+  const [evalMode, setEvalMode] = useLocalStorageState<'counting' | 'behavior'>('eval_mode', 'counting');
+  const [skipVideo, setSkipVideo] = useLocalStorageState<boolean>('eval_skip_video', false);
   const [jobIds, setJobIds] = useState<{ a: string | null; b: string | null }>({ a: null, b: null });
   const [pendingJobBBody, setPendingJobBBody] = useState<any>(null);
 
@@ -188,7 +191,7 @@ export default function EvaluationPage() {
 
   const jobQueries = useQueries({
     queries: (['a', 'b'] as const).map(slot => ({
-      queryKey: ['eval-job', jobIds[slot]],
+      queryKey: ['eval-job', slot, jobIds[slot]],
       queryFn: async () => {
         const { data } = await getJobJobsJobIdGet({ path: { job_id: jobIds[slot]! } });
         return data as JobDoc;
@@ -219,6 +222,8 @@ export default function EvaluationPage() {
         filename: selectedPair.video_filename,
         gt_basename: selectedPair.basename,
         viz_config: DEFAULT_VIZ,
+        eval_mode: evalMode,
+        skip_video: skipVideo,
       };
 
       if (isBothMode) {
@@ -370,31 +375,50 @@ export default function EvaluationPage() {
           </div>
 
           {/* Approach selector */}
+          {evalMode === 'counting' && (
+            <div>
+              <label className="block text-xs uppercase font-semibold text-gray-400 mb-1">
+                Метод
+              </label>
+              <div className="flex gap-1">
+                {([
+                  { val: 'A' as const, label: 'А (траєкторія)' },
+                  { val: 'B' as const, label: 'Б (pose)' },
+                  { val: 'AB' as const, label: 'А ↔ Б' },
+                ]).map(({ val, label }) => (
+                  <button
+                    key={val}
+                    onClick={() => setApproach(val)}
+                    disabled={isRunning}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition ${
+                      approach === val
+                        ? 'bg-[var(--accent)]/20 border-[var(--accent)]/60 text-[var(--accent)]'
+                        : 'bg-[var(--bg-panel)] border-gray-700 text-gray-400 hover:border-gray-500'
+                    } disabled:opacity-50`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Eval Mode selector */}
           <div>
             <label className="block text-xs uppercase font-semibold text-gray-400 mb-1">
-              Метод
+              Режим
             </label>
-            <div className="flex gap-1">
-              {([
-                { val: 'A' as const, label: 'А (траєкторія)' },
-                { val: 'B' as const, label: 'Б (pose)' },
-                { val: 'AB' as const, label: 'А ↔ Б' },
-              ]).map(({ val, label }) => (
-                <button
-                  key={val}
-                  onClick={() => setApproach(val)}
-                  disabled={isRunning}
-                  className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition ${
-                    approach === val
-                      ? 'bg-[var(--accent)]/20 border-[var(--accent)]/60 text-[var(--accent)]'
-                      : 'bg-[var(--bg-panel)] border-gray-700 text-gray-400 hover:border-gray-500'
-                  } disabled:opacity-50`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <select
+              value={evalMode}
+              onChange={e => setEvalMode(e.target.value as 'counting' | 'behavior')}
+              disabled={isRunning}
+              className="w-full bg-[var(--bg-panel)] border border-gray-700 rounded-lg px-3 py-2 text-sm disabled:opacity-50"
+            >
+              <option value="counting">Підрахунок (IN/OUT)</option>
+              <option value="behavior">Точність станів</option>
+            </select>
           </div>
+
 
           {/* Run button */}
           <button
@@ -406,6 +430,22 @@ export default function EvaluationPage() {
             {isRunning ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
             {isRunning ? 'Обробка…' : `Запустити ${approachLabel}`}
           </button>
+        </div>
+        
+        {/* Skip Video Toggle */}
+        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-800">
+          <input
+            type="checkbox"
+            id="skipVideoCheck"
+            checked={skipVideo}
+            onChange={(e) => setSkipVideo(e.target.checked)}
+            disabled={isRunning}
+            className="w-4 h-4 rounded border-gray-700 bg-[var(--bg-panel)] accent-[var(--accent)] cursor-pointer"
+          />
+          <label htmlFor="skipVideoCheck" className="text-sm text-gray-300 cursor-pointer flex items-center gap-2">
+            Без відео виводу (Швидкий тест)
+            <span className="text-xs text-gray-500 hidden sm:inline">— пропускає малювання рамок та рендер MP4 (у 2-3x рази швидше)</span>
+          </label>
         </div>
       </div>
 
@@ -565,6 +605,21 @@ export default function EvaluationPage() {
             </ResponsiveContainer>
           </div>
         </>
+      )}
+
+      {/* Result Presentation for Behavior Mode */}
+      {isComplete && evalMode === 'behavior' && jobA?.evaluation && (
+        <div className="space-y-6">
+          {jobA.evaluation.gt_video_url && videos.length > 0 && (
+            <SideBySideVideoPlayer
+              videos={[
+                { url: jobA.evaluation.gt_video_url, label: 'Ground Truth', borderClass: 'border-yellow-600/60', textClass: 'text-yellow-500' },
+                ...videos
+              ]}
+            />
+          )}
+          <BehaviorEvalResults result={jobA.evaluation as unknown as import('../types').BehaviorEvalResult} />
+        </div>
       )}
     </div>
   );

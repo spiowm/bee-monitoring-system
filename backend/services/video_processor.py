@@ -24,9 +24,16 @@ _DEVICE = 0 if torch.cuda.is_available() else "cpu"
 _READ_AHEAD = 3        # read-queue depth in batches
 _WRITE_AHEAD = 32      # write-queue depth in frames
 
+# Auto-detect FP16 support: Turing (7.x) and newer support efficient FP16
+_GPU_SUPPORTS_FP16 = (
+    isinstance(_DEVICE, int)
+    and torch.cuda.is_available()
+    and torch.cuda.get_device_capability(_DEVICE)[0] >= 7
+)
+
 # Reasonable default batch sizes for different VRAM tiers, used when ProcessConfig.batch_size is None.
 _DEFAULT_BATCH_FP32 = 2
-_DEFAULT_BATCH_FP16 = 4
+_DEFAULT_BATCH_FP16 = 6   # MX550 3.6GB fits ~6 frames @ FP16 + imgsz=1920
 
 
 def _resolve_model_path(model_name: str = None) -> str:
@@ -164,7 +171,7 @@ def _writer_worker(
         writer.write(item)
 
 
-async def process_video(job_id: str, video_path: str, config: dict, viz_config: dict, gt_entrance_zone=None):
+async def process_video(job_id: str, video_path: str, config: dict, viz_config: dict, gt_entrance_zone=None, skip_video=False, eval_mode="counting"):
     db = get_db()
     cancel = asyncio.Event()
     _cancel_flags[job_id] = cancel
@@ -188,8 +195,9 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         Path(settings.OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(raw_output_path, fourcc, fps, (width, height))
+        if not skip_video:
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(raw_output_path, fourcc, fps, (width, height))
 
         conf = config.get("conf_threshold", 0.35)
         iou = config.get("iou_threshold", 0.8)
@@ -199,7 +207,7 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
         # from the model's training metadata so inference matches training conditions.
         meta = getattr(bee_model, "bee_meta", None) or {}
         imgsz = config.get("imgsz") or meta.get("imgsz") or 640
-        half = bool(config.get("half_precision", False)) and isinstance(_DEVICE, int)
+        half = bool(config.get("half_precision", _GPU_SUPPORTS_FP16)) and isinstance(_DEVICE, int)
         batch_size = config.get("batch_size") or (
             _DEFAULT_BATCH_FP16 if half else _DEFAULT_BATCH_FP32
         )
@@ -249,8 +257,11 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
                 )
 
                 for (fn, frame), detection in zip(batch, batch_results):
+                    # We need the pipeline to process the frame to track and run behavior heuristics
+                    # even if we skip_video (because skip_video just means we don't save the video)
                     annotated = pipeline.process_frame(frame, fn, fps, detection_result=detection)
-                    write_q.put(annotated)
+                    if not skip_video:
+                        write_q.put(annotated)
 
                 frame_num = batch[-1][0]
                 pipeline.pipeline_state["current_fps"] = len(batch) / (time.time() - batch_start + 0.001)
@@ -288,18 +299,20 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
 
     if cancel.is_set():
         Path(raw_output_path).unlink(missing_ok=True)
-        if "uploads" in video_path:  # never delete test videos from data/videos/test/
+        if "uploads" in video_path:  # never delete test videos from GT_DATASET_PATH
             Path(video_path).unlink(missing_ok=True)
         return  # DB record already deleted by DELETE endpoint
 
     try:
         # Run FFmpeg in thread pool so the event loop stays responsive to other requests
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, convert_to_h264, raw_output_path, final_output_path)
+        if not skip_video:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, convert_to_h264, raw_output_path, final_output_path)
 
         duration = time.time() - start_time
         result = pipeline.get_result(frame_num, duration)
-        result["annotated_video_url"] = f"/static/output/{job_id}.mp4"
+        if not skip_video:
+            result["annotated_video_url"] = f"/static/output/{job_id}.mp4"
         result["recommendations"] = recommendations_to_dicts(generate_recommendations(result))
 
         logger.info(

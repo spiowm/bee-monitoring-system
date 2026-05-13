@@ -107,3 +107,27 @@ export interface EventRecord {
   behavior_class: string | null;
   angle_deg: number | null;
 }
+
+export interface BehaviorClassMetrics {
+  tp: number;
+  fp: number;
+  fn: number;
+  precision: number;
+  recall: number;
+  f1: number;
+  gt_count: number;
+  pred_count: number;
+}
+
+export interface BehaviorEvalResult {
+  per_class: Record<string, BehaviorClassMetrics>;
+  confusion_matrix: Record<string, Record<string, number>>;
+  overall_accuracy: number;
+  total_gt_labeled: number;
+  total_matched: number;
+  eval_classes: string[];
+  gt_basename: string;
+  video_resolution: number[];
+  fps: number;
+  gt_video_url?: string;
+}

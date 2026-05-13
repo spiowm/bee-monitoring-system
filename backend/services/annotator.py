@@ -2,11 +2,16 @@ import cv2
 import numpy as np
 from services.track_history import TrackHistory
 
+# Cache HSV→BGR conversion to avoid repeated cv2.cvtColor per track per frame
+_COLOR_CACHE: dict[int, tuple] = {}
+
 
 def track_color(track_id: int) -> tuple:
-    hue = (track_id * 137.508) % 360
-    rgb = cv2.cvtColor(np.uint8([[[hue / 2, 255, 255]]]), cv2.COLOR_HSV2BGR)[0][0]
-    return (int(rgb[0]), int(rgb[1]), int(rgb[2]))
+    if track_id not in _COLOR_CACHE:
+        hue = (track_id * 137.508) % 360
+        rgb = cv2.cvtColor(np.uint8([[[hue / 2, 255, 255]]]), cv2.COLOR_HSV2BGR)[0][0]
+        _COLOR_CACHE[track_id] = (int(rgb[0]), int(rgb[1]), int(rgb[2]))
+    return _COLOR_CACHE[track_id]
 
 
 class FrameAnnotator:
@@ -17,7 +22,8 @@ class FrameAnnotator:
                  behaviors, counter, events, stats_state, history: TrackHistory,
                  highlight_meta: dict | None = None,
                  defense_clusters: list | None = None):
-        annotated_frame = frame.copy()
+        # Draw in-place on input frame (no copy — frame is not reused after annotation)
+        annotated_frame = frame
         h, w = frame.shape[:2]
         tail_len = self.viz_config.get("track_tail_length", 30)
 

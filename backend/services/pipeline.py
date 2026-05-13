@@ -56,6 +56,7 @@ class VideoPipeline:
             "defense_events": [],
             "behavior_counts": {"foraging": 0, "fanning": 0, "washboarding": 0, "defense": 0, "unknown": 0},
             "current_behaviors": {},
+            "per_frame_behaviors": {}, # frame -> {track_id: behavior}
             "active_bees": 0,
             "current_fps": 0.0,
         }
@@ -92,6 +93,21 @@ class VideoPipeline:
             self.pipeline_state["recent_timings"].pop(0)
 
         self.pipeline_state["current_fps"] = 1000.0 / (ctx.timings.total_ms + 0.001)
+
+        # Collect behavior evaluation data
+        if "per_frame_behaviors" in self.pipeline_state:
+            frame_behaviors = {}
+            if ctx.tracked_detections is not None and ctx.tracked_detections.tracker_id is not None:
+                for i, tid in enumerate(ctx.tracked_detections.tracker_id):
+                    tid_int = int(tid)
+                    b = self.pipeline_state["current_behaviors"].get(tid_int)
+                    if b and b != "unknown":
+                        frame_behaviors[tid_int] = {
+                            "bbox": ctx.tracked_detections.xyxy[i].tolist(),
+                            "behavior": b,
+                        }
+            if frame_behaviors:
+                self.pipeline_state["per_frame_behaviors"][ctx.frame_num] = frame_behaviors
 
         return ctx.annotated_frame
 
@@ -215,4 +231,5 @@ class VideoPipeline:
             "defense_events": self.pipeline_state.get("defense_events", []),
             "events": self.pipeline_state["all_events"],
             "rejected_events": rejected_events,
+            "per_frame_behaviors": self.pipeline_state.get("per_frame_behaviors", {}),
         }

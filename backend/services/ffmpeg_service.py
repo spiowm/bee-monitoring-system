@@ -18,8 +18,8 @@ def convert_to_h264(input_path: str, output_path: str):
         "-y",
         "-i", input_path,
         "-vcodec", "libx264",
-        "-crf", "23",
-        "-preset", "fast",
+        "-crf", "25",
+        "-preset", "ultrafast",
         "-movflags", "+faststart",
         output_path
     ]

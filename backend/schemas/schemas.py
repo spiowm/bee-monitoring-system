@@ -94,6 +94,8 @@ class EvaluateJobRequest(BaseModel):
     gt_basename: str        # e.g. "20230711a-fan" — subfolder name in GT_DATASET_PATH
     config: ProcessConfig
     viz_config: VizConfig
+    eval_mode: str = "counting"  # "counting" or "behavior"
+    skip_video: bool = False     # if True, doesn't render output video
 
 
 class DirectionMetrics(BaseModel):
@@ -123,3 +125,24 @@ class EvaluationResult(BaseModel):
     fps: float
     video_resolution: List[int]
     gt_events: List[Dict[str, Any]] = []
+
+class BehaviorClassMetrics(BaseModel):
+    tp: int
+    fp: int
+    fn: int
+    precision: float
+    recall: float
+    f1: float
+    gt_count: int
+    pred_count: int
+
+class BehaviorEvalResult(BaseModel):
+    per_class: Dict[str, BehaviorClassMetrics]
+    confusion_matrix: Dict[str, Dict[str, int]]
+    overall_accuracy: float
+    total_gt_labeled: int
+    total_matched: int
+    eval_classes: List[str]
+    gt_basename: str
+    video_resolution: List[int]
+    fps: float

@@ -36,6 +36,14 @@ export type EvaluateJobRequest = {
     gt_basename: string;
     config: ProcessConfig;
     viz_config: VizConfig;
+    /**
+     * Eval Mode
+     */
+    eval_mode?: string;
+    /**
+     * Skip Video
+     */
+    skip_video?: boolean;
 };
 
 /**
@@ -157,13 +165,53 @@ export type ProcessConfig = {
      */
     behavior_foraging_speed_min?: number;
     /**
-     * Behavior Fanning Speed Max
+     * Behavior Foraging Angle Deg
      */
-    behavior_fanning_speed_max?: number;
+    behavior_foraging_angle_deg?: number;
+    /**
+     * Behavior Fanning Max Displacement Px
+     */
+    behavior_fanning_max_displacement_px?: number;
     /**
      * Behavior Fanning Duration Min
      */
     behavior_fanning_duration_min?: number;
+    /**
+     * Behavior Fanning Angle Deg
+     */
+    behavior_fanning_angle_deg?: number;
+    /**
+     * Behavior Washboarding Speed Max
+     */
+    behavior_washboarding_speed_max?: number;
+    /**
+     * Behavior Washboarding Duration Min
+     */
+    behavior_washboarding_duration_min?: number;
+    /**
+     * Behavior Washboarding Zcr Min
+     */
+    behavior_washboarding_zcr_min?: number;
+    /**
+     * Defense Radius Factor
+     */
+    defense_radius_factor?: number;
+    /**
+     * Defense Angle Deg
+     */
+    defense_angle_deg?: number;
+    /**
+     * Defense Min Defenders
+     */
+    defense_min_defenders?: number;
+    /**
+     * Defense Duration Sec
+     */
+    defense_duration_sec?: number;
+    /**
+     * Behavior Fanning Speed Max
+     */
+    behavior_fanning_speed_max?: number;
     /**
      * Behavior Guarding Speed Min
      */
@@ -490,6 +538,40 @@ export type GetJobLiveStatsJobsJobIdLiveGetResponses = {
      */
     200: unknown;
 };
+
+export type ExportMdReportAnalyticsExportMdGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Job A Id
+         */
+        job_a_id?: string;
+        /**
+         * Job B Id
+         */
+        job_b_id?: string;
+    };
+    url: '/analytics/export/md';
+};
+
+export type ExportMdReportAnalyticsExportMdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExportMdReportAnalyticsExportMdGetError = ExportMdReportAnalyticsExportMdGetErrors[keyof ExportMdReportAnalyticsExportMdGetErrors];
+
+export type ExportMdReportAnalyticsExportMdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: string;
+};
+
+export type ExportMdReportAnalyticsExportMdGetResponse = ExportMdReportAnalyticsExportMdGetResponses[keyof ExportMdReportAnalyticsExportMdGetResponses];
 
 export type GetSummaryAnalyticsSummaryGetData = {
     body?: never;

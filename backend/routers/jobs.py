@@ -176,6 +176,7 @@ async def create_eval_job(
         run_evaluation,
         job_id, file_path, request.gt_basename,
         request.config.model_dump(), request.viz_config.model_dump(),
+        request.eval_mode, request.skip_video
     )
 
     return {"job_id": job_id, "status": "pending"}

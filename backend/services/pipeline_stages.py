@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 import logging
+import cv2
 import numpy as np
 import supervision as sv
 import torch
@@ -16,7 +17,7 @@ from services.counter import TrafficCounter
 from services.behavior import BehaviorAnalyzer
 from services.annotator import FrameAnnotator
 from services.orientation import aligned, aligned_strict, get_orientation_vector
-from services.temporal_motion import compute_crop_motion
+from services.temporal_motion import compute_crop_motion_gray
 
 @dataclass
 class FrameTimings:
@@ -192,23 +193,26 @@ class TrackUpdateStage(PipelineStage):
         self.history = history
         
     def process(self, ctx: FrameContext, state: dict):
-        prev_frame = state.get("prev_frame")
+        prev_gray = state.get("prev_gray")
+        # Single full-frame BGR→GRAY conversion instead of per-crop
+        curr_gray = cv2.cvtColor(ctx.frame, cv2.COLOR_BGR2GRAY)
+
         if ctx.tracked_detections.tracker_id is not None:
             for i, track_id in enumerate(ctx.tracked_detections.tracker_id):
                 xyxy = ctx.tracked_detections.xyxy[i]
                 cx, cy = (xyxy[0] + xyxy[2]) / 2, (xyxy[1] + xyxy[3]) / 2
 
-                # TEM-like motion intensity per bee crop
+                # TEM-like motion intensity per bee crop (optimized grayscale)
                 motion = 0.0
-                if prev_frame is not None:
+                if prev_gray is not None:
                     try:
-                        motion = compute_crop_motion(prev_frame, ctx.frame, tuple(xyxy))
+                        motion = compute_crop_motion_gray(prev_gray, curr_gray, tuple(xyxy))
                     except Exception:
                         pass
 
                 self.history.update(track_id, cx, cy, ctx.frame_num, motion)
         self.history.prune_stale(ctx.frame_num)
-        state["prev_frame"] = ctx.frame
+        state["prev_gray"] = curr_gray
 
 
 class BehaviorStage(PipelineStage):
