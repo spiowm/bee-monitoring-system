@@ -32,6 +32,7 @@ export interface LiveStats {
   fallback_events: number;
   pose_rejected?: number;
   reject_reasons?: Record<string, number>;
+  angle_histogram?: Record<string, number>;
   behavior_counts: Record<string, number>;
   timings?: {
     detection_ms: number;

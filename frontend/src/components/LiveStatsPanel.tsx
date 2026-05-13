@@ -173,13 +173,13 @@ export default function LiveStatsPanel({ liveStats, job }: LiveStatsPanelProps) 
                     <div>
                       <div className="flex items-center gap-1.5 text-gray-400 mb-1">
                         🎯 FPS моделі
-                        <Info size={12} className="text-gray-500 cursor-help" title="Швидкість обробки нейромережею" />
+                        <span title="Швидкість обробки нейромережею"><Info size={12} className="text-gray-500 cursor-help" /></span>
                       </div>
                       <div className="text-lg font-mono font-bold text-white">{timings.model_fps?.toFixed(1)}</div>
                     </div>
                     <div className="text-right">
                       <div className="flex items-center justify-end gap-1.5 text-gray-400 mb-1">
-                        <Info size={12} className="text-gray-500 cursor-help" title="Реальна швидкість з урахуванням малювання та логіки" />
+                        <span title="Реальна швидкість з урахуванням малювання та логіки"><Info size={12} className="text-gray-500 cursor-help" /></span>
                         FPS пайплайну 📹
                       </div>
                       <div className="text-lg font-mono font-bold text-[var(--accent)]">{timings.pipeline_fps?.toFixed(1)}</div>

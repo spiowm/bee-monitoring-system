@@ -196,12 +196,12 @@ export default function JobDetailModal({ jobId, onClose }: { jobId: string; onCl
 
           {/* Pose-фільтр ефективність (тільки для Approach B) */}
           <PoseFilterCard
-            approach={job.result.approach_used}
-            poseConfirmed={job.result.pose_confirmed_events}
-            fallback={job.result.fallback_events}
-            rejected={job.result.pose_rejected_events || 0}
-            rejectReasons={job.result.reject_reasons}
-            angleHistogram={job.result.angle_histogram}
+            approach={job.result?.approach_used ?? 'A'}
+            poseConfirmed={job.result?.pose_confirmed_events ?? 0}
+            fallback={job.result?.fallback_events ?? 0}
+            rejected={job.result?.pose_rejected_events || 0}
+            rejectReasons={job.result?.reject_reasons}
+            angleHistogram={job.result?.angle_histogram}
           />
 
           {/* Beekeeper recommendations */}
