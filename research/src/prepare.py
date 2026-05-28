@@ -9,7 +9,7 @@ from omegaconf import DictConfig, OmegaConf
 from dotenv import load_dotenv
 
 
-def _prepare(raw_dir: str, prepared_dir: str, data_config: dict) -> None:
+def _prepare(raw_dir: str, prepared_dir: str, data_config: dict, seed: int = 42) -> None:
     raw_path = Path(raw_dir)
     images_dir = raw_path / "images"
     labels_dir = raw_path / "labels"
@@ -35,7 +35,7 @@ def _prepare(raw_dir: str, prepared_dir: str, data_config: dict) -> None:
         print(f"INFO: Hive split ({val_hives}) → train: {len(train_images)}, val: {len(val_images)}")
     else:
         val_ratio = float(data_config.get("val_ratio", 0.2))
-        rng = random.Random(42)
+        rng = random.Random(seed)
         shuffled = list(all_images)
         rng.shuffle(shuffled)
         n_val = max(1, int(len(shuffled) * val_ratio))
@@ -86,7 +86,11 @@ def main(cfg: DictConfig) -> None:
             f"Спочатку: uv run src/download.py [pose|ramp]"
         )
 
-    _prepare(raw_dir, prepared_dir, OmegaConf.to_container(cfg.data, resolve=True))
+    seed = cfg.training.seed if "training" in cfg and "seed" in cfg.training else 42
+    data_config = OmegaConf.to_container(cfg.data, resolve=True)
+    if not isinstance(data_config, dict):
+        raise ValueError("Expected cfg.data to resolve to a dictionary")
+    _prepare(raw_dir, prepared_dir, data_config, seed=seed)
 
 
 if __name__ == "__main__":

@@ -10,8 +10,8 @@ data:
   dataset_path: "datasets/pose/data.yaml"
   nc: 1
   names: ["bee"]
-  kpt_shape: [2, 2]                   # 2 keypoints (x, y) без visibility
-  split_strategy: "hive"              # or "random"
+  kpt_shape: [2, 2] # 2 keypoints (x, y) без visibility
+  split_strategy: "hive" # hive | random
   val_hives: ["20230711b", "20230609e"]
   val_ratio: 0.25
 
