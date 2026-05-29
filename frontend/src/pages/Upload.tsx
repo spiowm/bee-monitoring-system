@@ -28,7 +28,7 @@ export default function UploadPage() {
     model_name: null as string | null,
     behavior_foraging_speed_min: 100,
     behavior_fanning_speed_max: 15,
-    behavior_fanning_duration_min: 2.0,
+    behavior_fanning_duration_min: 1.0,
     behavior_guarding_speed_min: 15,
     behavior_guarding_speed_max: 80,
     behavior_guarding_spread_ratio: 1.5,

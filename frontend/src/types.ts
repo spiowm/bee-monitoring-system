@@ -126,6 +126,9 @@ export interface BehaviorEvalResult {
   total_gt_labeled: number;
   total_matched: number;
   eval_classes: string[];
+  foraging_events?: BehaviorClassMetrics | null;
+  excluded_multilabel?: number;
+  warmup_frames?: number;
   gt_basename: string;
   video_resolution: number[];
   fps: number;

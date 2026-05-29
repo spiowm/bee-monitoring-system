@@ -22,7 +22,7 @@ class VideoPipeline:
         self.config = config
         
         # Instantiate services
-        tracker = TrackerFactory.create(config.get("tracker_name", "bytetrack"))
+        tracker = TrackerFactory.create(config.get("tracker_name", "bytetrack"), config=config)
         counter = TrafficCounter(
             line_position=config.get("line_position", 0.0),
             approach=config.get("approach", "A"),
@@ -94,18 +94,20 @@ class VideoPipeline:
 
         self.pipeline_state["current_fps"] = 1000.0 / (ctx.timings.total_ms + 0.001)
 
-        # Collect behavior evaluation data
+        # Collect behavior evaluation data.
+        # Записуємо ВСІХ затреканих бджіл (включно з "unknown"), щоб evaluation
+        # міг відрізнити провал детекції (бджоли немає взагалі) від провалу
+        # класифікації (бджола є, але стан "unknown"/не той).
         if "per_frame_behaviors" in self.pipeline_state:
             frame_behaviors = {}
             if ctx.tracked_detections is not None and ctx.tracked_detections.tracker_id is not None:
                 for i, tid in enumerate(ctx.tracked_detections.tracker_id):
                     tid_int = int(tid)
                     b = self.pipeline_state["current_behaviors"].get(tid_int)
-                    if b and b != "unknown":
-                        frame_behaviors[tid_int] = {
-                            "bbox": ctx.tracked_detections.xyxy[i].tolist(),
-                            "behavior": b,
-                        }
+                    frame_behaviors[tid_int] = {
+                        "bbox": ctx.tracked_detections.xyxy[i].tolist(),
+                        "behavior": b or "unknown",
+                    }
             if frame_behaviors:
                 self.pipeline_state["per_frame_behaviors"][ctx.frame_num] = frame_behaviors
 

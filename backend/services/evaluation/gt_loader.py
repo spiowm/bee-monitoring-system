@@ -65,6 +65,7 @@ def load_gt_behaviors(path: Path) -> pd.DataFrame:
         return "idle"
     
     df["gt_behavior"] = df.apply(_resolve_behavior, axis=1)
+    df["gt_label_count"] = df[GT_BEHAVIOR_COLS].sum(axis=1)
     return df
 
 

@@ -252,17 +252,21 @@ class DefenseStage(PipelineStage):
     def __init__(self, config: dict | None = None):
         config = config or {}
         self.radius_factor = float(config.get("defense_radius_factor", 2.0))
-        self.angle_deg = float(config.get("defense_angle_deg", 30.0))      # було 45
-        self.min_defenders = int(config.get("defense_min_defenders", 3))    # було 2
-        self.duration_sec = float(config.get("defense_duration_sec", 2.0))  # було 1.0
-        # thief_track_id -> кількість послідовних кадрів виявлення
-        self.cluster_history: dict[int, int] = {}
+        self.angle_deg = float(config.get("defense_angle_deg", 45.0))
+        self.min_defenders = int(config.get("defense_min_defenders", 2))
+        self.duration_sec = float(config.get("defense_duration_sec", 0.3))
+        # pos_key -> список frame_num де цей кластер був виявлений (sliding window)
+        self.cluster_history: dict[tuple, list] = {}
+        self._pos_grid = 30   # px — комірка позиційного грид
+        self._window = int(config.get("defense_window_frames", 60))   # скільки кадрів назад аналізуємо
+        self._min_appearances = int(config.get("defense_min_appearances", 3))  # мінімум появ у вікні
 
     def process(self, ctx: FrameContext, state: dict):
         ctx.defense_clusters = []
         td = ctx.tracked_detections
         if td is None or td.tracker_id is None or len(td.tracker_id) < self.min_defenders + 1:
-            self.cluster_history.clear()
+            # Зберігаємо history незмінним — через нестабільність трекера кластери можуть
+            # тимчасово зникати на 1-2 кадри навіть при наявності реального defense поведінки.
             return
 
         boxes = td.xyxy
@@ -282,12 +286,18 @@ class DefenseStage(PipelineStage):
             kp = ctx.mapped_kpts[i] if i < len(ctx.mapped_kpts) else None
             body_vecs.append(get_orientation_vector(np.asarray(kp)) if kp is not None else None)
 
+        # Виявлення кластерів у поточному кадрі (keyed by track ID для доступу до бджіл)
+        # Бджоли з підтвердженим fanning не можуть бути defenders (різна поведінка)
+        current_behaviors = state.get("current_behaviors") or {}
         active_clusters: dict[int, dict] = {}
         for i in range(n):
             radius = float(bee_lengths[i] * self.radius_factor)
             defenders: list[int] = []
             for j in range(n):
                 if i == j or body_vecs[j] is None:
+                    continue
+                # Пропускаємо бджіл з підтвердженим fanning або washboarding
+                if current_behaviors.get(ids[j]) in ("fanning", "washboarding"):
                     continue
                 vec_ij = centers[i] - centers[j]
                 dist = float(np.linalg.norm(vec_ij))
@@ -304,27 +314,57 @@ class DefenseStage(PipelineStage):
                     "radius": radius,
                 }
 
-        # decay для зниклих кластерів
-        for tid in list(self.cluster_history.keys()):
-            if tid not in active_clusters:
-                del self.cluster_history[tid]
-        # increment для існуючих
-        for tid in active_clusters:
-            self.cluster_history[tid] = self.cluster_history.get(tid, 0) + 1
+        # Positional sliding-window history — стійкий до зміни track IDs ByteTrack
+        g = self._pos_grid
+        active_pos: dict[tuple, dict] = {}
+        for cluster in active_clusters.values():
+            cx, cy = cluster["center"]
+            pkey = (int(cx / g), int(cy / g))
+            active_pos[pkey] = cluster
 
-        # Підтверджені (тривалість >= Tdef)
-        min_frames = max(1, int((ctx.fps or 30.0) * self.duration_sec))
+        frame_num = ctx.frame_num
+        cutoff = frame_num - self._window
+
+        # Додаємо поточний кадр до history для активних позицій (з пошуком сусідніх клітинок)
+        for pkey in active_pos:
+            best_key = None
+            for dk in [(0,0),(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(1,-1),(-1,1)]:
+                nkey = (pkey[0]+dk[0], pkey[1]+dk[1])
+                if nkey in self.cluster_history:
+                    best_key = nkey
+                    break
+            if best_key is not None and best_key != pkey:
+                # Перемістити запис до нового ключа
+                self.cluster_history[pkey] = self.cluster_history.pop(best_key)
+            if pkey not in self.cluster_history:
+                self.cluster_history[pkey] = []
+            self.cluster_history[pkey].append(frame_num)
+
+        # Прибираємо старі записи з вікна і пусті ключі
+        for pkey in list(self.cluster_history.keys()):
+            frames_list = [f for f in self.cluster_history[pkey] if f > cutoff]
+            if frames_list:
+                self.cluster_history[pkey] = frames_list
+            else:
+                del self.cluster_history[pkey]
+
+        # Підтверджені: позиція, де в sliding window було >= min_appearances появ
         confirmed = []
         behaviors = state.get("current_behaviors") or {}
-        for tid, frames in self.cluster_history.items():
-            if frames < min_frames:
+        for pkey, frames_list in self.cluster_history.items():
+            if len(frames_list) < self._min_appearances:
                 continue
-            cluster = active_clusters[tid]
-            confirmed.append({**cluster, "frame": ctx.frame_num})
-            # Перезапис поведінки thief + defenders
-            behaviors[tid] = "defense"
+            cluster = active_pos.get(pkey)
+            if cluster is None:
+                continue
+            tid = cluster["thief_track_id"]
+            confirmed.append({**cluster, "frame": frame_num})
+            # Не перезаписуємо підтверджену fanning/washboarding поведінку
+            if current_behaviors.get(tid) not in ("fanning", "washboarding"):
+                behaviors[tid] = "defense"
             for did in cluster["defender_track_ids"]:
-                behaviors[did] = "defense"
+                if current_behaviors.get(did) not in ("fanning", "washboarding"):
+                    behaviors[did] = "defense"
 
         if confirmed:
             state["current_behaviors"] = behaviors

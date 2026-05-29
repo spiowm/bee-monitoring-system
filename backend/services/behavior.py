@@ -36,9 +36,9 @@ class HeuristicBehaviorStrategy(BehaviorStrategy):
     Класифікує per-track поведінку згідно з PLOS ONE 2025 (Table 1):
 
       Foraging:     Vfor > 100 px/s, motion vec до льотка ±60°
-      Fanning:      Dfan < 10 px, Tfan > 1 s, body vec до льотка ±90° (strict!),
-                    avg_speed < 20 px/s, motion_intensity > 0.05
-      Washboarding: 5 < Vwash < 60 px/s, Twash > 2 s, ZCR > 3 Hz,
+      Fanning:      ZCR > 15 Hz (аліасинг крилобиття при 50 fps), Tfan > 1 s,
+                    body vec до льотка ±90° (strict), avg_motion > 0.05
+      Washboarding: ZCR 3–15 Hz (ритмічні рухи), 5 < V < 60, Twash > 2 s,
                     displacement < 40 px, body ≈ до льотка ±120°
       Unknown:      достатньо історії, але жоден патерн не підходить
 
@@ -52,15 +52,12 @@ class HeuristicBehaviorStrategy(BehaviorStrategy):
         # Foraging
         self.foraging_speed_min = float(config.get("behavior_foraging_speed_min", 100.0))
         self.foraging_angle_deg = float(config.get("behavior_foraging_angle_deg", 60.0))
-        # Fanning
-        self.fanning_max_displacement_px = float(
-            config.get("behavior_fanning_max_displacement_px", 10.0)
-        )
-        self.fanning_speed_max = float(config.get("behavior_fanning_speed_max", 20.0))
+        # Fanning — головний дискримінатор: ZCR крилобиття > 15 Hz (аліасинг при 50 fps)
+        self.fanning_zcr_min = float(config.get("behavior_fanning_zcr_min", 15.0))
         self.fanning_duration_min = float(config.get("behavior_fanning_duration_min", 1.0))
         self.fanning_angle_deg = float(config.get("behavior_fanning_angle_deg", 90.0))
         self.fanning_motion_min = float(config.get("behavior_fanning_motion_min", 0.05))
-        # Washboarding
+        # Washboarding — ZCR нижчий ніж у fanning
         self.washboarding_speed_min = float(config.get("behavior_washboarding_speed_min", 5.0))
         self.washboarding_speed_max = float(config.get("behavior_washboarding_speed_max", 60.0))
         self.washboarding_max_disp = float(config.get("behavior_washboarding_max_disp", 40.0))
@@ -113,23 +110,24 @@ class HeuristicBehaviorStrategy(BehaviorStrategy):
             ):
                 behavior = "foraging"
 
-            # 2. Fanning: нерухома, тривала, з РЕАЛЬНОЮ позою до льотка, високий motion
+            # 2. Fanning: висока ZCR (аліасинг крилобиття ~200Hz при 50fps → ~15+ Hz),
+            #    тривале перебування, тіло орієнтоване до льотка, є рух крил
             elif (
-                max_disp < self.fanning_max_displacement_px
-                and avg_speed < self.fanning_speed_max
+                zcr > self.fanning_zcr_min
                 and duration_sec > self.fanning_duration_min
-                and aligned_strict(body_vec, entrance_vec, self.fanning_angle_deg)
                 and avg_motion >= self.fanning_motion_min
+                and aligned_strict(body_vec, entrance_vec, self.fanning_angle_deg)
             ):
                 behavior = "fanning"
 
-            # 3. Washboarding: ритмічні рухи, обмежена швидкість і displacement
+            # 3. Washboarding: ритмічні рухи, ZCR нижча ніж у fanning, обмежений рух
             elif (
                 avg_speed > self.washboarding_speed_min
                 and avg_speed < self.washboarding_speed_max
                 and max_disp < self.washboarding_max_disp
                 and duration_sec > self.washboarding_duration_min
                 and zcr > self.washboarding_zcr_min
+                and zcr <= self.fanning_zcr_min
                 and aligned_strict(body_vec, entrance_vec, self.washboarding_body_angle_deg)
             ):
                 behavior = "washboarding"
