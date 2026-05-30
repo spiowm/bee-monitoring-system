@@ -144,18 +144,21 @@ export default function UploadPage() {
         <div className={`card flex flex-col items-center p-0 overflow-hidden relative min-h-[400px] ${(!job || job.status !== 'complete') ? 'flex-grow justify-center' : 'justify-start'}`}>
           {!jobId && !isProcessing && (
             <div className="text-center select-none px-6 py-10 max-w-xl">
-              <div className="w-32 h-32 rounded-full border-4 border-dashed border-[var(--accent)]/40 flex items-center justify-center mx-auto mb-6">
-                <Video size={56} className="text-[var(--accent)]/60" />
+              <div className="relative w-32 h-32 mx-auto mb-8 animate-float">
+                <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-xl animate-pulse-glow" />
+                <div className="relative w-full h-full rounded-full border-2 border-amber-500/50 bg-white/5 backdrop-blur-sm flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.2)]">
+                  <Video size={48} className="text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                </div>
               </div>
-              <h2 className="text-3xl font-bold text-gray-100 mb-2">
+              <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">
                 Готові до аналізу?
               </h2>
-              <p className="text-base text-gray-400 mb-6">
+              <p className="text-base text-gray-400 mb-8">
                 Завантажте відеозапис вулика або спробуйте демо-запис
               </p>
               {testVideos.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">
+                <div className="space-y-3">
+                  <p className="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">
                     Демо-записи
                   </p>
                   <div className="flex flex-col gap-2">

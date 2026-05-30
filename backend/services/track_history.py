@@ -25,6 +25,15 @@ class TrackEntry:
     def last_n_positions(self, n: int) -> list:
         return self.positions[-n:]
 
+    def recent_displacement(self, k: int = 15) -> float:
+        """Чисте зміщення центру за останні k кадрів (px). Дешевий маркер
+        «бджола активно переміщується» (атакує) vs «стоїть на місці» (fanning/idle)."""
+        if len(self.positions) < 2:
+            return 0.0
+        a = self.positions[-1]
+        b = self.positions[-min(k, len(self.positions))]
+        return float(((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5)
+
     def last_frame(self) -> Optional[int]:
         return self.frames[-1] if self.frames else None
 
@@ -143,3 +152,29 @@ class TrackHistory:
 
     def active_ids(self, current_ids: set) -> set:
         return set(self._tracks.keys()) & current_ids
+
+    def find_stitching_candidate(self, cx: float, cy: float, current_frame: int, active_mapped_ids: set, max_dist: float = 30.0, max_frames: int = 30) -> Optional[int]:
+        """
+        Знаходить кандидата для зшивання треків (Temporal Re-ID).
+        Повертає track_id, якщо знайдено недавно зниклий трек близько до (cx, cy).
+        """
+        best_id = None
+        best_dist = max_dist
+        
+        for tid, entry in self._tracks.items():
+            if tid in active_mapped_ids:
+                continue
+                
+            last_frame = entry.last_frame()
+            if last_frame is None:
+                continue
+                
+            frames_missed = current_frame - last_frame
+            if 0 < frames_missed <= max_frames:
+                last_cx, last_cy = entry.positions[-1]
+                dist = np.sqrt((cx - last_cx)**2 + (cy - last_cy)**2)
+                if dist < best_dist:
+                    best_dist = dist
+                    best_id = tid
+                    
+        return best_id

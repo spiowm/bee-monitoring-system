@@ -36,12 +36,15 @@ class VideoPipeline:
         self.stages = [
             DetectionStage(bee_model, config, gt_entrance_zone=gt_entrance_zone),
             TrackingStage(tracker),
-            TrackUpdateStage(history),
+            TrackUpdateStage(history, config=config),
             BehaviorStage(behavior_analyzer),
             DefenseStage(config),
             CountingStage(counter),
-            AnnotationStage(annotator, counter),
         ]
+        # AnnotationStage малює на кадрі — для evaluation непотрібно (результат
+        # відкидається). Пропуск суттєво пришвидшує прогін на щільних відео.
+        if not config.get("skip_annotation", False):
+            self.stages.append(AnnotationStage(annotator, counter))
 
         # Accumulated pipeline state
         self.pipeline_state = {

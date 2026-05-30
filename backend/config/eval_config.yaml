@@ -1,0 +1,21 @@
+# Оптимізований конфіг behavior/defense/stitch (свіпи 2026-05-30).
+# Читається eval_fast.py і eval_cli.py, мерджиться поверх дефолтів коду.
+#
+# Підстава (diag_features.py по 3 повних відео):
+#  - ZCR насичений (~38Гц у всіх) → марний; max_disp = справжній дискримінатор fanning
+#  - ~50% fanning-бджіл без keypoints → strict body-alignment їх відкидав
+#  - foraging крав стаціонарних fanning через jitter-роздутий avg_speed
+#  - defense_min_appearances=2 знаходить більше реальних подій захисту
+
+# Fanning: стаціонарність замість насиченого ZCR + м'який body-check
+behavior_fanning_max_disp: 60.0        # бджола стоїть на місці (px зміщення у вікні)
+behavior_fanning_require_body: false   # не відкидати бджіл без keypoints
+behavior_fanning_duration_min: 0.6     # нижче для фрагментованих треків (fan2)
+behavior_fanning_priority: true        # стаціонарна fanning > foraging (jitter-крадіжка)
+
+# Defense: менш сувора персистентність — вищий recall реальних подій
+defense_min_appearances: 2
+
+# Stitch: трохи довше вікно зшивання — кращі foraging-перетини без шкоди fanning
+stitch_max_frames: 45
+stitch_max_dist: 30.0

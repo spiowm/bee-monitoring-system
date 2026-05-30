@@ -1,0 +1,62 @@
+
+==================================================
+ Iteration 1/10
+==================================================
+Config: {'stitch_max_dist': 30.0, 'stitch_max_frames': 30, 'behavior_fanning_zcr_min': 15.0, 'behavior_fanning_motion_min': 0.05}
+  Evaluating 20230609b-def... done in 171.8s. Fan_R: 0.562, Def_F1: 0.571
+  Evaluating 20230711a-fan... ERROR: 'NoneType' object has no attribute 'get'
+  Evaluating 20230711b-fan... ERROR: 'NoneType' object has no attribute 'get'
+--> Combined Score: 0.3780
+*** NEW BEST SCORE! ***
+
+==================================================
+ Iteration 2/10
+==================================================
+Config: {'behavior_fanning_motion_min': 0.05, 'behavior_fanning_zcr_min': 12.0, 'stitch_max_dist': 50.0, 'stitch_max_frames': 30}
+  Evaluating 20230609b-def... done in 171.6s. Fan_R: 0.562, Def_F1: 0.571
+  Evaluating 20230711a-fan... ERROR: 'NoneType' object has no attribute 'get'
+  Evaluating 20230711b-fan... ERROR: 'NoneType' object has no attribute 'get'
+--> Combined Score: 0.3780
+
+==================================================
+ Iteration 3/10
+==================================================
+Config: {'behavior_fanning_motion_min': 0.03, 'behavior_fanning_zcr_min': 15.0, 'stitch_max_dist': 30.0, 'stitch_max_frames': 30}
+  Evaluating 20230609b-def... done in 172.2s. Fan_R: 0.562, Def_F1: 0.571
+  Evaluating 20230711a-fan... ERROR: 'NoneType' object has no attribute 'get'
+  Evaluating 20230711b-fan... ERROR: 'NoneType' object has no attribute 'get'
+--> Combined Score: 0.3780
+
+==================================================
+ Iteration 4/10
+==================================================
+Config: {'behavior_fanning_motion_min': 0.03, 'behavior_fanning_zcr_min': 16.0, 'stitch_max_dist': 40.0, 'stitch_max_frames': 60}
+  Evaluating 20230609b-def... done in 172.1s. Fan_R: 0.562, Def_F1: 0.571
+  Evaluating 20230711a-fan... ERROR: 'NoneType' object has no attribute 'get'
+  Evaluating 20230711b-fan... ERROR: 'NoneType' object has no attribute 'get'
+--> Combined Score: 0.3780
+
+==================================================
+ Iteration 5/10
+==================================================
+Config: {'behavior_fanning_motion_min': 0.03, 'behavior_fanning_zcr_min': 16.0, 'stitch_max_dist': 30.0, 'stitch_max_frames': 60}
+  Evaluating 20230609b-def... done in 178.5s. Fan_R: 0.562, Def_F1: 0.571
+  Evaluating 20230711a-fan... ERROR: 'NoneType' object has no attribute 'get'
+  Evaluating 20230711b-fan... ERROR: 'NoneType' object has no attribute 'get'
+--> Combined Score: 0.3780
+
+==================================================
+ Iteration 6/10
+==================================================
+Config: {'behavior_fanning_motion_min': 0.08, 'behavior_fanning_zcr_min': 15.0, 'stitch_max_dist': 20.0, 'stitch_max_frames': 45}
+  Evaluating 20230609b-def... done in 174.4s. Fan_R: 0.562, Def_F1: 0.571
+  Evaluating 20230711a-fan... ERROR: 'NoneType' object has no attribute 'get'
+  Evaluating 20230711b-fan... ERROR: 'NoneType' object has no attribute 'get'
+--> Combined Score: 0.3780
+
+==================================================
+ Iteration 7/10
+==================================================
+Config: {'behavior_fanning_motion_min': 0.08, 'behavior_fanning_zcr_min': 16.0, 'stitch_max_dist': 30.0, 'stitch_max_frames': 45}
+  Evaluating 20230609b-def... done in 173.6s. Fan_R: 0.562, Def_F1: 0.571
+  Evaluating 20230711a-fan...

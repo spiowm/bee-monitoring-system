@@ -90,6 +90,30 @@ def _print_confusion(cm: dict, eval_classes: list[str]):
         print(row_str)
 
 
+def _print_frame_presence(fp: dict | None):
+    """Вивід frame-presence метрики — аналог метрики статті (Sledevič et al. 2025)."""
+    if not fp:
+        return
+    print(f"\n  {_color('Frame-presence (метрика статті Sledevič et al. 2025)', '1;35')}")
+    print(f"  {'Клас':<14} {'P':>7} {'R':>7} {'F1':>7}  {'TP':>6} {'FP':>6} {'FN':>6}")
+    print("  " + "-" * 60)
+    paper_order = ["foraging", "fanning", "washboarding", "defense", "background"]
+    for cls in paper_order:
+        m = fp["per_class"].get(cls)
+        if m is None:
+            continue
+        print(
+            f"  {cls:<14} {_fmt_pct(m['precision'])} {_fmt_pct(m['recall'])} "
+            f"{_fmt_pct(m['f1'])}  {m['tp']:>6} {m['fp']:>6} {m['fn']:>6}"
+        )
+    print(
+        f"\n  Macro-F1 (4 поведінки):  {_fmt_pct(fp['macro_f1_behavior'])}  "
+        f"| Macro-F1 (+background): {_fmt_pct(fp['macro_f1_all'])}"
+    )
+    print(f"  {_color('↑ Comparable to paper 87%', '2;35')}"
+          f"  (frame-level multi-label, without per-bee IoU matching)")
+
+
 def run(args):
     # Імпортуємо після налаштування логування
     from config import settings
@@ -147,7 +171,17 @@ def run(args):
         "ramp_detect_interval": 30,
         "behavior_fanning_duration_min": 1.0,
         "behavior_eval_warmup_frames": args.warmup,
+        "skip_annotation": True,
     }
+
+    # YAML-overrides (behavior/defense/stitch гіперпараметри)
+    if args.config and Path(args.config).exists():
+        import yaml
+        with open(args.config) as f:
+            yaml_cfg = yaml.safe_load(f) or {}
+        if yaml_cfg:
+            config.update(yaml_cfg)
+            print(f"  YAML overrides ({args.config}): {yaml_cfg}")
 
     pipeline = VideoPipeline(model, config, {}, gt_entrance_zone=zone)
 
@@ -181,6 +215,7 @@ def run(args):
     doc = build_behavior_evaluation(
         gt_df, pred_per_frame, pred_events, zone, fps,
         warmup_frames=args.warmup,
+        total_frames=frame_num,
     )
 
     # --- Звіт ---
@@ -193,8 +228,26 @@ def run(args):
     print(f"  Pred-подій counting: {len(pred_events)}")
 
     _print_perclass_table(doc["per_class"])
+
     _print_foraging(doc["foraging_events"])
+    
+    if "defense_events" in doc and doc["defense_events"]:
+        m = doc["defense_events"]
+        print("\n  \033[1;33mDefense (подієва метрика)\033[0m")
+        print(
+            f"  GT-подій: {m['gt_count']}  Pred-подій: {m['pred_count']}  "
+            f"TP:{m['tp']} FP:{m['fp']} FN:{m['fn']}"
+        )
+        print(
+            f"  Precision: {m['precision']*100:5.1f}%  "
+            f"Recall: {m['recall']*100:5.1f}%  "
+            f"F1: {m['f1']*100:5.1f}%"
+        )
+
     _print_confusion(doc["confusion_matrix"], doc["eval_classes"])
+
+    _print_frame_presence(doc.get("frame_presence"))
+
     print(f"{'='*60}\n")
 
     if args.json:
@@ -211,6 +264,8 @@ def main():
     parser.add_argument("--frames", type=int, default=0, help="Обмежити кількість кадрів (0=всі)")
     parser.add_argument("--warmup", type=int, default=80, help="Кадрів warm-up для fanning (default: 80)")
     parser.add_argument("--json", default="", help="Шлях для збереження JSON-результату")
+    parser.add_argument("--config", default="config/eval_config.yaml",
+                        help="YAML з гіперпараметрами (behavior/defense/stitch)")
     parser.add_argument("--verbose", action="store_true", help="Детальний лог")
     args = parser.parse_args()
 

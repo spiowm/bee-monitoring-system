@@ -28,9 +28,9 @@ interface CardProps {
 function KpiCard({ title, value, subtitle, borderClass, textClass, hero }: CardProps) {
   return (
     <div
-      className={`bg-[var(--bg-panel)] rounded-xl border ${borderClass} ${
+      className={`glass-panel border ${borderClass} ${
         hero ? 'p-6 md:p-7' : 'p-5'
-      } transition-shadow hover:shadow-lg`}
+      } transition-all duration-300 hover:shadow-xl hover:-translate-y-1`}
     >
       <div
         className={`text-xs font-semibold mb-3 uppercase tracking-widest ${

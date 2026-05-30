@@ -14,30 +14,36 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 function App() {
   return (
     <Router>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col relative overflow-hidden">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+        
         {/* Navbar */}
-        <header className="bg-[var(--bg-card)] border-b border-gray-800 px-4 py-3">
+        <header className="sticky top-0 z-50 glass-panel border-x-0 border-t-0 rounded-none px-4 py-4 mb-4 shadow-lg shadow-black/20">
           <div className="container mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[var(--accent)]">
-              <Activity size={24} />
-              <h1 className="text-lg font-bold tracking-wide">Bee Monitor</h1>
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-amber-400 to-orange-500 p-2 rounded-xl shadow-lg shadow-amber-500/30">
+                <Activity size={24} className="text-white" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">Bee Monitor</h1>
             </div>
-            <nav className="flex gap-2">
+            <nav className="flex gap-2 glass-panel px-2 py-1.5 rounded-xl">
               <NavLink to="/" end className={navClass}>
-                <Activity size={16} /> <span>Завантаження</span>
+                <Activity size={18} /> <span>Завантаження</span>
               </NavLink>
               <NavLink to="/analytics" className={navClass}>
-                <BarChart2 size={16} /> <span>Аналітика</span>
+                <BarChart2 size={18} /> <span>Аналітика</span>
               </NavLink>
               <NavLink to="/evaluation" className={navClass}>
-                <Target size={16} /> <span>Точність</span>
+                <Target size={18} /> <span>Точність</span>
               </NavLink>
             </nav>
           </div>
         </header>
 
         {/* Main Content */}
-        <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 flex flex-col">
+        <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 flex flex-col relative z-10 animate-fade-in">
           <Routes>
             <Route path="/" element={<UploadPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />

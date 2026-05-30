@@ -189,8 +189,12 @@ class TrackingStage(PipelineStage):
 
 
 class TrackUpdateStage(PipelineStage):
-    def __init__(self, history: TrackHistory):
+    def __init__(self, history: TrackHistory, config: dict | None = None):
         self.history = history
+        self.id_mapping = {}
+        config = config or {}
+        self.stitch_max_dist = float(config.get("stitch_max_dist", 30.0))
+        self.stitch_max_frames = int(config.get("stitch_max_frames", 30))
         
     def process(self, ctx: FrameContext, state: dict):
         prev_gray = state.get("prev_gray")
@@ -198,6 +202,37 @@ class TrackUpdateStage(PipelineStage):
         curr_gray = cv2.cvtColor(ctx.frame, cv2.COLOR_BGR2GRAY)
 
         if ctx.tracked_detections.tracker_id is not None:
+            active_mapped_ids = set()
+            new_indices = []
+            
+            # 1. Remap IDs and stitch (Temporal Re-ID)
+            for i in range(len(ctx.tracked_detections.tracker_id)):
+                raw_id = int(ctx.tracked_detections.tracker_id[i])
+                if raw_id in self.id_mapping:
+                    mapped_id = self.id_mapping[raw_id]
+                    ctx.tracked_detections.tracker_id[i] = mapped_id
+                    active_mapped_ids.add(mapped_id)
+                else:
+                    new_indices.append((i, raw_id))
+                    
+            for i, raw_id in new_indices:
+                xyxy = ctx.tracked_detections.xyxy[i]
+                cx, cy = (xyxy[0] + xyxy[2]) / 2, (xyxy[1] + xyxy[3]) / 2
+                
+                # Check for recently disappeared tracks
+                candidate_id = self.history.find_stitching_candidate(
+                    cx, cy, ctx.frame_num, active_mapped_ids, 
+                    max_dist=self.stitch_max_dist, 
+                    max_frames=self.stitch_max_frames
+                )
+                if candidate_id is not None:
+                    self.id_mapping[raw_id] = candidate_id
+                    ctx.tracked_detections.tracker_id[i] = candidate_id
+                    active_mapped_ids.add(candidate_id)
+                else:
+                    active_mapped_ids.add(raw_id)
+
+            # 2. Update history
             for i, track_id in enumerate(ctx.tracked_detections.tracker_id):
                 xyxy = ctx.tracked_detections.xyxy[i]
                 cx, cy = (xyxy[0] + xyxy[2]) / 2, (xyxy[1] + xyxy[3]) / 2
@@ -210,7 +245,8 @@ class TrackUpdateStage(PipelineStage):
                     except Exception:
                         pass
 
-                self.history.update(track_id, cx, cy, ctx.frame_num, motion)
+                self.history.update(int(track_id), cx, cy, ctx.frame_num, motion)
+                
         self.history.prune_stale(ctx.frame_num)
         state["prev_gray"] = curr_gray
 
@@ -260,6 +296,11 @@ class DefenseStage(PipelineStage):
         self._pos_grid = 30   # px — комірка позиційного грид
         self._window = int(config.get("defense_window_frames", 60))   # скільки кадрів назад аналізуємо
         self._min_appearances = int(config.get("defense_min_appearances", 3))  # мінімум появ у вікні
+        # Defender має АКТИВНО рухатись (атакувати), а не стояти на місці.
+        # Це відсіює хибні «кластери» зі стаціонарних fanning-бджіл у fan-відео,
+        # зберігаючи реальний defense (де охоронці кидаються на крадія).
+        self.defender_min_motion = float(config.get("defense_defender_min_motion", 0.0))
+        self.motion_window = int(config.get("defense_motion_window", 15))
 
     def process(self, ctx: FrameContext, state: dict):
         ctx.defense_clusters = []
@@ -289,6 +330,7 @@ class DefenseStage(PipelineStage):
         # Виявлення кластерів у поточному кадрі (keyed by track ID для доступу до бджіл)
         # Бджоли з підтвердженим fanning не можуть бути defenders (різна поведінка)
         current_behaviors = state.get("current_behaviors") or {}
+        history = state.get("history")
         active_clusters: dict[int, dict] = {}
         for i in range(n):
             radius = float(bee_lengths[i] * self.radius_factor)
@@ -299,6 +341,12 @@ class DefenseStage(PipelineStage):
                 # Пропускаємо бджіл з підтвердженим fanning або washboarding
                 if current_behaviors.get(ids[j]) in ("fanning", "washboarding"):
                     continue
+                # Defender має активно рухатись (атакувати), інакше це стаціонарна
+                # fanning/idle бджола, яка лише геометрично «дивиться» на сусіда.
+                if self.defender_min_motion > 0 and history is not None:
+                    ent = history.get(ids[j])
+                    if ent is None or ent.recent_displacement(self.motion_window) < self.defender_min_motion:
+                        continue
                 vec_ij = centers[i] - centers[j]
                 dist = float(np.linalg.norm(vec_ij))
                 if dist > radius or dist < 1e-6:

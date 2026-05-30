@@ -15,6 +15,8 @@ from services.evaluation.counting_eval import compute_gt_events, match_events
 logger = logging.getLogger(__name__)
 
 PERFRAME_CLASSES = ["fanning", "washboarding", "defense"]
+PAPER_CLASSES = ["foraging", "fanning", "washboarding", "defense", "background"]
+PAPER_BEHAV = {"foraging", "fanning", "washboarding", "defense"}
 
 
 def _iou_matrix(boxes_a: np.ndarray, boxes_b: np.ndarray) -> np.ndarray:
@@ -176,6 +178,72 @@ def _compute_perframe_metrics(
     return per_class, cm_dict, total_gt_labeled, total_matched, excluded_multilabel
 
 
+
+def _compute_event_metrics_for_class(
+    gt_df,
+    pred_per_frame: dict,
+    behavior_class: str,
+    gap_frames: int = 30,
+) -> dict:
+    import pandas as pd
+    gt_frames = gt_df[gt_df["gt_behavior"] == behavior_class]["frame"].unique()
+    gt_frames.sort()
+    
+    pred_frames = []
+    for f_num, pdata in pred_per_frame.items():
+        if any(b.get("behavior") == behavior_class for b in pdata.values()):
+            pred_frames.append(f_num)
+    pred_frames.sort()
+    
+    def get_episodes(frames, max_gap):
+        eps = []
+        if len(frames) == 0: return eps
+        start = frames[0]
+        prev = frames[0]
+        for f in frames[1:]:
+            if f - prev > max_gap:
+                eps.append((start, prev))
+                start = f
+            prev = f
+        eps.append((start, prev))
+        return eps
+        
+    gt_eps = get_episodes(gt_frames, gap_frames)
+    pred_eps = get_episodes(pred_frames, gap_frames)
+    
+    tp = 0
+    fp = 0
+    
+    matched_gt = set()
+    matched_pred = 0
+    for p_start, p_end in pred_eps:
+        matched = False
+        for i, (g_start, g_end) in enumerate(gt_eps):
+            if p_end >= g_start - gap_frames and p_start <= g_end + gap_frames:
+                matched_gt.add(i)
+                matched = True
+                break
+        if matched:
+            matched_pred += 1
+            
+    tp = len(matched_gt)
+    fp = len(pred_eps) - matched_pred
+    fn = len(gt_eps) - len(matched_gt)
+    
+    prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
+    
+    return {
+        "tp": tp, "fp": fp, "fn": fn,
+        "precision": round(prec, 4),
+        "recall": round(rec, 4),
+        "f1": round(f1, 4),
+        "gt_count": len(gt_eps),
+        "pred_count": len(pred_eps),
+    }
+
+
 def _compute_foraging_events(
     gt_df: pd.DataFrame,
     entrance_zone: np.ndarray,
@@ -185,20 +253,101 @@ def _compute_foraging_events(
     """Подієва метрика для foraging: GT line-crossing events vs pred counting events.
 
     Обидва напрямки (IN+OUT) рахуємо разом — важливий факт реєстрації, не напрям.
+    Виводимо GT-події з УСІХ GT-треків, оскільки будь-який перетин = foraging-подія.
     """
     foraging_tracks = gt_df[gt_df["gt_behavior"] == "foraging"]
-    if len(foraging_tracks) == 0:
+    gt_events = compute_gt_events(foraging_tracks, entrance_zone, fps=fps)
+    
+    # Фільтруємо pred_events: залишаємо тільки ті, де бджола мала стан 'foraging'
+    pred_foraging = [e for e in pred_events if e.get("behavior_class") == "foraging"]
+    
+    if len(gt_events) == 0 and len(pred_foraging) == 0:
         return {"tp": 0, "fp": 0, "fn": 0, "precision": 0.0, "recall": 0.0, "f1": 0.0, "gt_count": 0, "pred_count": 0}
 
-    gt_events = compute_gt_events(foraging_tracks, entrance_zone, fps=fps)
-
     # Зіставляємо без поділу на напрям (нейтралізуємо направленість)
-    pred_neutral = [{"frame": e["frame"]} for e in pred_events]
+    pred_neutral = [{"frame": e["frame"]} for e in pred_foraging]
     gt_neutral = [{"frame": e["frame"]} for e in gt_events]
 
     from services.evaluation.counting_eval import _match_directional, _metrics
     tp, fp, fn = _match_directional(gt_neutral, pred_neutral, frame_window=15)
     return _metrics(tp, fp, fn, len(gt_neutral), len(pred_neutral))
+
+
+def _compute_frame_presence_metrics(
+    gt_df: pd.DataFrame,
+    pred_per_frame: dict,
+    total_frames: int,
+) -> dict:
+    """Frame-presence метрика — як у статті Sledevič et al. (PLOS ONE 2025, Fig. 14).
+
+    Оцінює на рівні КАДРУ (не на рівні окремої бджоли):
+      - GT: які поведінкові класи присутні у кадрі (multi-label, без IoU)
+      - Pred: які класи є серед передбачень у кадрі (multi-label)
+      - Клас background: кадри без жодної специфічної поведінки
+      - Якщо у кадрі є і fanning, і foraging — обидва TP (multi-label)
+
+    Це поблажливіша метрика: вона не штрафує за класифікацію конкретної бджоли —
+    достатньо, щоб клас хоч десь з'явився у кадрі.
+    """
+    from collections import defaultdict
+
+    # GT: набір класів у кожному кадрі
+    gt_present: dict[int, set] = defaultdict(set)
+    for fr, grp in gt_df.groupby("frame"):
+        s = {b for b in grp["gt_behavior"].unique() if b in PAPER_BEHAV}
+        gt_present[int(fr)] = s
+
+    # Pred: набір класів у кожному кадрі
+    pred_present: dict[int, set] = defaultdict(set)
+    for f_num, bees in pred_per_frame.items():
+        s = {b["behavior"] for b in bees.values() if b.get("behavior") in PAPER_BEHAV}
+        pred_present[int(f_num)] = s
+
+    stat: dict[str, dict] = {c: {"tp": 0, "fp": 0, "fn": 0} for c in PAPER_CLASSES}
+
+    for f_num in range(1, total_frames + 1):
+        g = gt_present.get(f_num, set())
+        p = pred_present.get(f_num, set())
+        # background = порожній набір специфічних поведінок
+        g_eff = g if g else {"background"}
+        p_eff = p if p else {"background"}
+        for c in PAPER_CLASSES:
+            in_g = c in g_eff
+            in_p = c in p_eff
+            if in_g and in_p:
+                stat[c]["tp"] += 1
+            elif in_p and not in_g:
+                stat[c]["fp"] += 1
+            elif in_g and not in_p:
+                stat[c]["fn"] += 1
+
+    per_class_fp: dict[str, dict] = {}
+    for c in PAPER_CLASSES:
+        t, fp, fn = stat[c]["tp"], stat[c]["fp"], stat[c]["fn"]
+        prec = t / (t + fp) if (t + fp) > 0 else 0.0
+        rec = t / (t + fn) if (t + fn) > 0 else 0.0
+        f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
+        per_class_fp[c] = {
+            "tp": t, "fp": fp, "fn": fn,
+            "precision": round(prec, 4),
+            "recall": round(rec, 4),
+            "f1": round(f1, 4),
+        }
+
+    # Загальна accuracy = (TP всіх класів) / (TP + FP + FN) — як у їхній матриці
+    total_tp = sum(v["tp"] for v in per_class_fp.values())
+    total_all = sum(v["tp"] + v["fp"] + v["fn"] for v in per_class_fp.values())
+    # Macro-F1 по 4 поведінкових класах (без background) — найближче до їхніх 87%
+    behav_f1s = [per_class_fp[c]["f1"] for c in PAPER_BEHAV if c in per_class_fp]
+    macro_f1_behav = sum(behav_f1s) / len(behav_f1s) if behav_f1s else 0.0
+    macro_f1_all = sum(v["f1"] for v in per_class_fp.values()) / len(per_class_fp)
+
+    return {
+        "per_class": per_class_fp,
+        "macro_f1_behavior": round(macro_f1_behav, 4),
+        "macro_f1_all": round(macro_f1_all, 4),
+        "total_frames": total_frames,
+    }
 
 
 def build_behavior_evaluation(
@@ -210,6 +359,7 @@ def build_behavior_evaluation(
     *,
     warmup_frames: int | dict = 80,
     iou_threshold: float = 0.3,
+    total_frames: int = 0,
 ) -> dict:
     """Головна функція: повертає повний evaluation_doc без Mongo.
 
@@ -246,9 +396,18 @@ def build_behavior_evaluation(
     total_decisions = total_tp + sum(m["fp"] for m in per_class.values()) + sum(m["fn"] for m in per_class.values())
     overall_acc = total_tp / total_decisions if total_decisions > 0 else 0.0
 
+
     foraging_events = None
     if has_foraging:
         foraging_events = _compute_foraging_events(gt_df, entrance_zone, pred_events, fps)
+        
+    defense_events = None
+    if "defense" in gt_df["gt_behavior"].values:
+        defense_events = _compute_event_metrics_for_class(gt_df, pred_per_frame, "defense", gap_frames=30)
+
+    # Frame-presence метрика (як у Sledevič et al. PLOS ONE 2025)
+    n_frames = total_frames if total_frames > 0 else int(gt_df["frame"].max())
+    frame_presence = _compute_frame_presence_metrics(gt_df, pred_per_frame, n_frames)
 
     return {
         "per_class": per_class,
@@ -258,8 +417,10 @@ def build_behavior_evaluation(
         "total_matched": total_matched,
         "eval_classes": present_perframe,
         "foraging_events": foraging_events,
+        "defense_events": defense_events,
         "excluded_multilabel": excluded_multilabel,
         "warmup_frames": warmup_frames,
+        "frame_presence": frame_presence,
     }
 
 
