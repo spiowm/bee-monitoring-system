@@ -161,6 +161,10 @@ export type ProcessConfig = {
      */
     model_name?: string | null;
     /**
+     * Skip Video
+     */
+    skip_video?: boolean;
+    /**
      * Behavior Foraging Speed Min
      */
     behavior_foraging_speed_min?: number;
@@ -169,9 +173,9 @@ export type ProcessConfig = {
      */
     behavior_foraging_angle_deg?: number;
     /**
-     * Behavior Fanning Max Displacement Px
+     * Behavior Fanning Max Disp
      */
-    behavior_fanning_max_displacement_px?: number;
+    behavior_fanning_max_disp?: number;
     /**
      * Behavior Fanning Duration Min
      */
@@ -181,9 +185,33 @@ export type ProcessConfig = {
      */
     behavior_fanning_angle_deg?: number;
     /**
+     * Behavior Fanning Zcr Min
+     */
+    behavior_fanning_zcr_min?: number;
+    /**
+     * Behavior Fanning Motion Min
+     */
+    behavior_fanning_motion_min?: number;
+    /**
+     * Behavior Fanning Require Body
+     */
+    behavior_fanning_require_body?: boolean;
+    /**
+     * Behavior Fanning Priority
+     */
+    behavior_fanning_priority?: boolean;
+    /**
+     * Behavior Washboarding Speed Min
+     */
+    behavior_washboarding_speed_min?: number;
+    /**
      * Behavior Washboarding Speed Max
      */
     behavior_washboarding_speed_max?: number;
+    /**
+     * Behavior Washboarding Max Disp
+     */
+    behavior_washboarding_max_disp?: number;
     /**
      * Behavior Washboarding Duration Min
      */
@@ -192,6 +220,10 @@ export type ProcessConfig = {
      * Behavior Washboarding Zcr Min
      */
     behavior_washboarding_zcr_min?: number;
+    /**
+     * Behavior Washboarding Body Angle Deg
+     */
+    behavior_washboarding_body_angle_deg?: number;
     /**
      * Defense Radius Factor
      */
@@ -209,21 +241,25 @@ export type ProcessConfig = {
      */
     defense_duration_sec?: number;
     /**
-     * Behavior Fanning Speed Max
+     * Defense Window Frames
      */
-    behavior_fanning_speed_max?: number;
+    defense_window_frames?: number;
     /**
-     * Behavior Guarding Speed Min
+     * Defense Min Appearances
      */
-    behavior_guarding_speed_min?: number;
+    defense_min_appearances?: number;
     /**
-     * Behavior Guarding Speed Max
+     * Defense Visual Threshold
      */
-    behavior_guarding_speed_max?: number;
+    defense_visual_threshold?: number;
     /**
-     * Behavior Guarding Spread Ratio
+     * Stitch Max Dist
      */
-    behavior_guarding_spread_ratio?: number;
+    stitch_max_dist?: number;
+    /**
+     * Stitch Max Frames
+     */
+    stitch_max_frames?: number;
 };
 
 /**

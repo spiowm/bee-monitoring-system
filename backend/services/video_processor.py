@@ -181,6 +181,13 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
     raw_output_path = f"{settings.OUTPUT_DIR}/{job_id}_raw.mp4"
     final_output_path = f"{settings.OUTPUT_DIR}/{job_id}.mp4"
 
+    # Швидкий режим без відео: прапорець може прийти явним параметром АБО в config
+    # (фронтенд кладе його в config). У цьому режимі пропускаємо і запис відео,
+    # і важке малювання AnnotationStage — потрібна лише статистика.
+    skip_video = skip_video or bool(config.get("skip_video", False))
+    if skip_video:
+        config = {**config, "skip_annotation": True}
+
     try:
         bee_model = await get_bee_model(config.get("model_name"))
         pipeline = VideoPipeline(bee_model, config, viz_config, gt_entrance_zone=gt_entrance_zone)
@@ -229,11 +236,14 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
         reader = threading.Thread(
             target=_reader_worker, args=(cap, read_q, batch_size, stop_event), daemon=True
         )
-        writer = threading.Thread(
-            target=_writer_worker, args=(out, write_q), daemon=True
-        )
         reader.start()
-        writer.start()
+        # У швидкому режимі (skip_video) вихідного відео немає — writer-потік не потрібен
+        writer = None
+        if not skip_video:
+            writer = threading.Thread(
+                target=_writer_worker, args=(out, write_q), daemon=True
+            )
+            writer.start()
 
         try:
             while not cancel.is_set():
@@ -278,9 +288,10 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
                     )
         finally:
             stop_event.set()
-            write_q.put(None)           # signal writer to drain and exit
             reader.join(timeout=10.0)
-            writer.join(timeout=120.0)   # wait for all writes to flush
+            if writer is not None:
+                write_q.put(None)           # signal writer to drain and exit
+                writer.join(timeout=120.0)   # wait for all writes to flush
 
     except Exception as e:
         logger.error(f"Job {job_id} failed: {e}", exc_info=True)
@@ -320,17 +331,23 @@ async def process_video(job_id: str, video_path: str, config: dict, viz_config: 
             f"{result['fps_processed']:.1f} fps processed"
         )
 
+        # per_frame_behaviors має ЦІЛІ ключі (frame_num → {track_id → …}) і потрібен
+        # лише для behavior-evaluation у пам'яті. Mongo (BSON) забороняє нерядкові
+        # ключі, тож зберігаємо без нього, а повний result повертаємо викликачу.
+        mongo_result = {k: v for k, v in result.items() if k != "per_frame_behaviors"}
         await db["jobs"].update_one(
             {"job_id": job_id},
             {"$set": {
                 "status": "complete",
                 "progress": 1.0,
-                "result": result,
+                "result": mongo_result,
             }},
         )
+        return result
     except Exception as e:
         logger.error(f"Job {job_id} failed during finalization: {e}", exc_info=True)
         await db["jobs"].update_one(
             {"job_id": job_id},
             {"$set": {"status": "failed", "error": str(e)}},
         )
+        return None

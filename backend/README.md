@@ -57,8 +57,22 @@ backend/
     └── evaluation/          # GT evaluation submodule
         ├── gt_loader.py     # парсер tracks_and_behavior_classes_*.txt
         ├── counting_eval.py # GT events + greedy matching (TP/FP/FN, F1, MAE)
+        ├── behavior_eval.py # behavior-метрики: сувора (per-bee IoU) + frame-presence
         ├── gt_annotator.py  # рендер GT-відео (жовті бокси)
         └── evaluator.py     # оркестратор run_evaluation
+```
+
+Офлайн-інструменти оцінки/діагностики винесені в окремий пакет (не рантайм):
+
+```
+backend/eval/                # запуск: cd backend && uv run python -m eval.<module>
+├── eval_fast.py             # швидкий евал через кеш детекцій (~150 fps)
+├── eval_cli.py              # реальний YOLO-пайплайн (фінальна валідація)
+├── detection_cache.py       # кеш сирих YOLO-детекцій → backend/data/eval_cache/
+├── diag_features.py         # розподіли ознак TP/FP/FN
+├── diag_frame_presence.py   # переоцінка метрикою статті
+├── parse_eval.py            # парсер summary-JSON
+└── README.md                # деталі
 ```
 
 ## Два підходи підрахунку
@@ -80,16 +94,31 @@ backend/
 
 ## Класифікація поведінки (PLOS ONE 2025)
 
-Per-track у `behavior.py:HeuristicBehaviorStrategy`. Кожен трек класифікується (порядок пріоритету):
+Per-track у `behavior.py:HeuristicBehaviorStrategy`. Параметри відкалібровано на повних
+відео (свіпи 2026-05-30, див. `eval/README.md`); значення зашиті в `ProcessConfig`
+і дублюються в `config/eval_config.yaml`.
 
-1. **Foraging (Фуражування)** — `avg_speed > 100 px/s` І рух у напрямку льотка ±60°.
-2. **Fanning (Вентиляція)** — `max_displacement < 10 px` І `duration > 1 с` І тіло спрямоване до льотка ±90°.
-3. **Washboarding (Полірування)** — `avg_speed < 60 px/s` І `duration > 2 с` І `zero_cross_rate > 2 Hz` (періодичні зміни знаку прискорення).
+> **Ключова знахідка:** ZCR (zero-cross rate) **насичений** (~38 Гц у всіх бджіл) і
+> марний як дискримінатор. Справжній сигнал fanning — **стаціонарність** (`max_disp`).
+
+Порядок пріоритету:
+
+1. **Fanning (Вентиляція)** — `max_disp < 60 px` (стаціонарна) І `duration > 0.6 с` І є рух крил (`avg_motion ≥ 0.05`). Має пріоритет над foraging для стаціонарних бджіл (`behavior_fanning_priority`), бо jitter роздуває avg_speed і інакше краде fanning. Орієнтація тіла — м'який бонус (`require_body=false`), бо ~50% бджіл не мають keypoints.
+2. **Foraging (Фуражування)** — `avg_speed > 100 px/s` І рух у напрямку льотка ±60°.
+3. **Washboarding (Полірування)** — `5 < avg_speed < 60 px/s` І `duration > 2 с` І `zero_cross_rate` у діапазоні (у датасеті лише `yt8`).
 
 **Defense (Захист)** — окрема стадія `DefenseStage` (multi-bee):
 - Для кожної бджоли A знаходить ≥2 сусідок у радіусі `2 × bee_length`, чий вектор тіла спрямований на A в межах ±45°
-- Якщо кластер тримається ≥1 с — всі учасники отримують `behavior="defense"`
+- Підтверджується, якщо кластер з'являється ≥`defense_min_appearances` (=2) разів у вікні 60 кадрів — всі учасники отримують `behavior="defense"` (підтверджена fanning/washboarding не перезаписується)
 - Annotator малює червоне коло «DEFENSE»
+
+### Дві метрики оцінки
+- **Сувора (per-bee IoU)** — наш стандарт. **Frame-presence (як у статті PLOS ONE 2025)** — поблажлива, на рівні кадру (поле `frame_presence` у результаті evaluation). Деталі й інструменти — `eval/README.md`.
+
+### Швидкий режим (без відео)
+`config.skip_video = true` → пайплайн рахує статистику без рендеру анотованого відео
+(і пропускає `AnnotationStage`). Для пасічника, якому потрібні цифри, не бокси.
+Тумблер «⚡ Швидкий режим» на головній сторінці.
 
 ## Evaluation проти ground-truth
 
@@ -156,18 +185,20 @@ Frontend `/evaluation` запускає **A і B паралельно** на о�
 | `conf_threshold` | `0.20` | YOLO confidence cutoff |
 | `kp_conf_threshold` | `0.5` | Поріг впевненості ключових точок |
 | `angle_threshold_deg` | `60.0` | Approach B: max кут між рухом і позою |
+| `skip_video` | `false` | Швидкий режим — не рендерити вихідне відео |
 | `behavior_foraging_speed_min` | `100` | Vfor (px/s) |
-| `behavior_foraging_angle_deg` | `60` | Afor (рух → льоток) |
-| `behavior_fanning_max_displacement_px` | `10` | Dfan |
-| `behavior_fanning_duration_min` | `1.0` | Tfan (с) |
-| `behavior_fanning_angle_deg` | `90` | Afan (тіло → льоток) |
+| `behavior_fanning_max_disp` | `60` | **Гол. дискримінатор fanning** — стаціонарність (px) |
+| `behavior_fanning_duration_min` | `0.6` | Tfan (с) |
+| `behavior_fanning_require_body` | `false` | Чи вимагати keypoints для орієнтації |
+| `behavior_fanning_priority` | `true` | Стаціонарна fanning > foraging |
 | `behavior_washboarding_speed_max` | `60` | Vwash |
-| `behavior_washboarding_duration_min` | `2.0` | Twash (с) |
-| `behavior_washboarding_zcr_min` | `2.0` | Zero-cross rate (Hz) |
+| `behavior_washboarding_zcr_min` | `3.0` | Zero-cross rate (Hz) |
 | `defense_radius_factor` | `2.0` | Rdef = factor × довжина бджоли |
-| `defense_angle_deg` | `45.0` | Adef |
 | `defense_min_defenders` | `2` | Ndef |
-| `defense_duration_sec` | `1.0` | Tdef |
+| `defense_min_appearances` | `2` | Появ кластера у вікні для підтвердження |
+| `stitch_max_dist` / `stitch_max_frames` | `30` / `45` | Track stitching (Temporal Re-ID) |
+
+> Значення дзеркаляться в `config/eval_config.yaml` (для офлайн-інструментів `eval/`).
 
 ## Посилання
 

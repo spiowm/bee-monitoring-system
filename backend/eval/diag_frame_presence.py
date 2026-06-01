@@ -23,14 +23,15 @@ def main():
     ap.add_argument("--pairs", default="20230609b-def,20230711a-fan,20230711b-fan")
     args = ap.parse_args()
 
+    from pathlib import Path as _P
     from config import settings
     from services.evaluation.gt_loader import gt_paths, load_gt_behaviors, denormalize, load_entrance_zone
     from services.pipeline import VideoPipeline
-    import detection_cache as dc
-    from eval_fast import base_config, load_yaml_config
+    from eval import detection_cache as dc
+    from eval.eval_fast import base_config, load_yaml_config
 
     config = base_config(80)
-    config.update(load_yaml_config("config/eval_config.yaml"))
+    config.update(load_yaml_config(str(_P(__file__).resolve().parent.parent / "config" / "eval_config.yaml")))
 
     grand = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0})
     for pair in args.pairs.split(","):

@@ -245,8 +245,9 @@ class TrackUpdateStage(PipelineStage):
                     except Exception:
                         pass
 
-                self.history.update(int(track_id), cx, cy, ctx.frame_num, motion)
-                
+                kp = ctx.mapped_kpts[i] if i < len(ctx.mapped_kpts) else None
+                self.history.update(int(track_id), cx, cy, ctx.frame_num, motion, kpts=kp)
+
         self.history.prune_stale(ctx.frame_num)
         state["prev_gray"] = curr_gray
 
@@ -295,7 +296,12 @@ class DefenseStage(PipelineStage):
         self.cluster_history: dict[tuple, list] = {}
         self._pos_grid = 30   # px — комірка позиційного грид
         self._window = int(config.get("defense_window_frames", 60))   # скільки кадрів назад аналізуємо
-        self._min_appearances = int(config.get("defense_min_appearances", 3))  # мінімум появ у вікні
+        self._min_appearances = int(config.get("defense_min_appearances", 2))  # мінімум появ для класифікації поведінки (→ метрики)
+        # Поріг для відображення кола на відео — ВИЩИЙ, щоб подавити хибні
+        # спрацювання від форажирів, що швидко проходять через льоток.
+        # Класифікація поведінки (і eval-метрики) залишаються на _min_appearances.
+        _default_visual = max(8, self._min_appearances * 4)
+        self._visual_threshold = int(config.get("defense_visual_threshold", _default_visual))
         # Defender має АКТИВНО рухатись (атакувати), а не стояти на місці.
         # Це відсіює хибні «кластери» зі стаціонарних fanning-бджіл у fan-відео,
         # зберігаючи реальний defense (де охоронці кидаються на крадія).
@@ -328,18 +334,30 @@ class DefenseStage(PipelineStage):
             body_vecs.append(get_orientation_vector(np.asarray(kp)) if kp is not None else None)
 
         # Виявлення кластерів у поточному кадрі (keyed by track ID для доступу до бджіл)
-        # Бджоли з підтвердженим fanning не можуть бути defenders (різна поведінка)
+        # Справжній крадій — це завжди чужинець (unknown/foraging), а НЕ своя
+        # стаціонарна бджола. Тому підтверджені fanning/washboarding не можуть бути
+        # ні крадієм, ні охоронцями.
         current_behaviors = state.get("current_behaviors") or {}
         history = state.get("history")
+        _stable = ("fanning", "washboarding")
+        # Бджола НЕ може бути крадієм якщо вона: fanning, washboarding, або ВЖЕ defense.
+        # Це розриває петлю зворотного зв'язку: defense-бджоли не починають нові кластери.
+        # Foraging та unknown залишаються потенційними крадіями.
+        _not_thief = ("fanning", "washboarding", "defense")
         active_clusters: dict[int, dict] = {}
         for i in range(n):
+            if current_behaviors.get(ids[i]) in _not_thief:
+                continue
+            # Примітка: displacement-фільтр для крадіїв НЕ застосовується, бо реальний
+            # крадій може бути притиснутий і майже нерухомий під час атаки.
+            # Подавлення хибних кіл вирішується через _visual_threshold (≥8 появ).
             radius = float(bee_lengths[i] * self.radius_factor)
             defenders: list[int] = []
             for j in range(n):
                 if i == j or body_vecs[j] is None:
                     continue
                 # Пропускаємо бджіл з підтвердженим fanning або washboarding
-                if current_behaviors.get(ids[j]) in ("fanning", "washboarding"):
+                if current_behaviors.get(ids[j]) in _stable:
                     continue
                 # Defender має активно рухатись (атакувати), інакше це стаціонарна
                 # fanning/idle бджола, яка лише геометрично «дивиться» на сусіда.
@@ -362,7 +380,8 @@ class DefenseStage(PipelineStage):
                     "radius": radius,
                 }
 
-        # Positional sliding-window history — стійкий до зміни track IDs ByteTrack
+        # Позиційна ковзна вікно — стійка до зміни track IDs (ByteTrack часто губить
+        # ID під час бійки). Ключ — лише позиція (30px grid).
         g = self._pos_grid
         active_pos: dict[tuple, dict] = {}
         for cluster in active_clusters.values():
@@ -373,7 +392,7 @@ class DefenseStage(PipelineStage):
         frame_num = ctx.frame_num
         cutoff = frame_num - self._window
 
-        # Додаємо поточний кадр до history для активних позицій (з пошуком сусідніх клітинок)
+        # Оновлюємо history з пошуком сусідніх клітинок (для плавного руху)
         for pkey in active_pos:
             best_key = None
             for dk in [(0,0),(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(1,-1),(-1,1)]:
@@ -382,13 +401,12 @@ class DefenseStage(PipelineStage):
                     best_key = nkey
                     break
             if best_key is not None and best_key != pkey:
-                # Перемістити запис до нового ключа
                 self.cluster_history[pkey] = self.cluster_history.pop(best_key)
             if pkey not in self.cluster_history:
                 self.cluster_history[pkey] = []
             self.cluster_history[pkey].append(frame_num)
 
-        # Прибираємо старі записи з вікна і пусті ключі
+        # Прибираємо старі записи і пусті ключі
         for pkey in list(self.cluster_history.keys()):
             frames_list = [f for f in self.cluster_history[pkey] if f > cutoff]
             if frames_list:
@@ -396,23 +414,28 @@ class DefenseStage(PipelineStage):
             else:
                 del self.cluster_history[pkey]
 
-        # Підтверджені: позиція, де в sliding window було >= min_appearances появ
+        # Два пороги підтвердження:
+        #   _min_appearances  → класифікує поведінку (для eval-метрик і recall)
+        #   _visual_threshold → малює коло на відео (набагато вище).
+        # Кола показуються лише при стійкій defense-події (реальна бійка, що
+        # триває секунди). Форажири, що транзитно проходять льоток, не накопичують
+        # _visual_threshold появ і кола не отримують.
         confirmed = []
         behaviors = state.get("current_behaviors") or {}
         for pkey, frames_list in self.cluster_history.items():
-            if len(frames_list) < self._min_appearances:
+            n_app = len(frames_list)
+            if n_app < self._min_appearances:
                 continue
             cluster = active_pos.get(pkey)
             if cluster is None:
                 continue
             tid = cluster["thief_track_id"]
-            confirmed.append({**cluster, "frame": frame_num})
-            # Не перезаписуємо підтверджену fanning/washboarding поведінку
-            if current_behaviors.get(tid) not in ("fanning", "washboarding"):
-                behaviors[tid] = "defense"
+            behaviors[tid] = "defense"
             for did in cluster["defender_track_ids"]:
-                if current_behaviors.get(did) not in ("fanning", "washboarding"):
+                if current_behaviors.get(did) not in _stable:
                     behaviors[did] = "defense"
+            if n_app >= self._visual_threshold:
+                confirmed.append({**cluster, "frame": frame_num})
 
         if confirmed:
             state["current_behaviors"] = behaviors

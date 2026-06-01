@@ -286,22 +286,23 @@ export default function JobConfigPanel({
         </div>
       )}
 
-      {/* Пороги поведінки */}
+      {/* Класифікація поведінки — відкалібровано (read-only) */}
       <button
         className="flex items-center justify-between w-full text-xs font-semibold text-gray-400 py-2 border-t border-gray-700"
         onClick={() => setShowBehavior(!showBehavior)}
       >
-        <span className="flex items-center gap-2"><Settings size={14} /> Пороги поведінки</span>
+        <span className="flex items-center gap-2"><Settings size={14} /> Класифікація поведінки</span>
         {showBehavior ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
       {showBehavior && (
-        <div className="space-y-3 bg-[var(--bg-panel)] p-3 rounded-lg border border-gray-800">
-          <p className="text-xs text-gray-500">Пороги для евристичного класифікатора (пкс/с).</p>
-          <Slider label="Мін. швидкість фуражування" value={Number(c.behavior_foraging_speed_min ?? 100)} min={30} max={300} step={10} onChange={v => set({ behavior_foraging_speed_min: v })} unit=" пкс/с" />
-          <Slider label="Макс. швидкість вентиляції" value={Number(c.behavior_fanning_speed_max ?? 15)} min={5} max={50} step={5} onChange={v => set({ behavior_fanning_speed_max: v })} unit=" пкс/с" />
-          <Slider label="Мін. тривалість вентиляції" value={Number(c.behavior_fanning_duration_min ?? 2)} min={0.5} max={10} step={0.5} onChange={v => set({ behavior_fanning_duration_min: v })} unit=" с" />
-          <Slider label="Мін. швидкість охорони" value={Number(c.behavior_guarding_speed_min ?? 15)} min={5} max={80} step={5} onChange={v => set({ behavior_guarding_speed_min: v })} unit=" пкс/с" />
-          <Slider label="Макс. швидкість охорони" value={Number(c.behavior_guarding_speed_max ?? 80)} min={30} max={200} step={10} onChange={v => set({ behavior_guarding_speed_max: v })} unit=" пкс/с" />
+        <div className="space-y-2 bg-[var(--bg-panel)] p-3 rounded-lg border border-gray-800 text-xs">
+          <p className="text-[var(--accent)] font-medium">Відкалібровано за датасетом (PLOS ONE 2025)</p>
+          <p className="text-gray-500">Параметри класифікації підібрані оптимально на повних відео й зафіксовані — змінювати не потрібно.</p>
+          <ul className="space-y-1 text-gray-500 mt-1 leading-relaxed">
+            <li>• <span className="text-gray-300">Фуражування</span>: швидкість &gt; 100 пкс/с до льотка</li>
+            <li>• <span className="text-gray-300">Вентиляція</span>: стаціонарна (&lt; 60 пкс), ≥ 0.6 с</li>
+            <li>• <span className="text-gray-300">Захист</span>: кластер охоронців (≥ 2) навколо крадія</li>
+          </ul>
         </div>
       )}
 
@@ -330,6 +331,20 @@ export default function JobConfigPanel({
       )}
         </div>
       )}
+
+      {/* Швидкий режим — без рендеру відео (тільки статистика) */}
+      <label className="flex items-start gap-2 text-xs cursor-pointer bg-[var(--bg-panel)] p-2.5 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors">
+        <input
+          type="checkbox"
+          checked={!!c.skip_video}
+          onChange={e => set({ skip_video: e.target.checked })}
+          className="accent-[var(--accent)] mt-0.5"
+        />
+        <span>
+          <span className="font-medium text-gray-200">⚡ Швидкий режим — без відео</span>
+          <span className="block text-[11px] text-gray-500 mt-0.5">Тільки підрахунок і статистика, без рендеру боксів — значно швидше.</span>
+        </span>
+      </label>
 
       <button
         disabled={!canStart}

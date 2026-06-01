@@ -16,7 +16,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-CACHE_DIR = Path(__file__).resolve().parent / "data" / "eval_cache"
+# Кеш живе в backend/data/eval_cache (цей файл — у backend/eval/, тож parent.parent)
+CACHE_DIR = Path(__file__).resolve().parent.parent / "data" / "eval_cache"
 
 
 class _Arr:

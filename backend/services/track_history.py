@@ -9,6 +9,8 @@ class TrackEntry:
     frames: list = field(default_factory=list)       # [frame_num, ...]
     motion_intensity: list = field(default_factory=list)  # TEM-like motion score per frame
     behavior: Optional[str] = None
+    last_kpts: object = None  # останні спостережені keypoints (голова/хвіст) —
+                              # орієнтація для кадрів, де трек коастить (відсутня детекція)
 
     # Max positions to keep (longest consumer is BehaviorAnalyzer: 150)
     _MAX_LEN: int = 150
@@ -130,10 +132,15 @@ class TrackHistory:
     def __init__(self):
         self._tracks: dict[int, TrackEntry] = {}
 
-    def update(self, track_id: int, cx: float, cy: float, frame_num: int, motion: float = 0.0):
+    def update(self, track_id: int, cx: float, cy: float, frame_num: int,
+               motion: float = 0.0, kpts=None):
         if track_id not in self._tracks:
             self._tracks[track_id] = TrackEntry()
         self._tracks[track_id].append(cx, cy, frame_num, motion)
+        # Зберігаємо останні валідні keypoints — використовуються як орієнтація
+        # коли трек коастить (відсутній у поточному кадрі, але є в history)
+        if kpts is not None:
+            self._tracks[track_id].last_kpts = kpts
 
     def prune_stale(self, current_frame: int, max_age: int = 60):
         """Remove tracks not seen for max_age frames."""

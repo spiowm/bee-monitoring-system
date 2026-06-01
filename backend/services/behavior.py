@@ -118,6 +118,10 @@ class HeuristicBehaviorStrategy(BehaviorStrategy):
             )
 
             kp = keypoints_by_track.get(track_id) if keypoints_by_track else None
+            # Fallback: якщо трек коастить (відсутній у цьому кадрі), беремо
+            # останні спостережені keypoints — орієнтація бджоли майже не змінюється.
+            if kp is None:
+                kp = entry.last_kpts
             body_vec = get_orientation_vector(np.asarray(kp)) if kp is not None else None
 
             # Передобчислені гейти

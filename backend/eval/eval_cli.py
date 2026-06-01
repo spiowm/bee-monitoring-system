@@ -1,10 +1,9 @@
-"""CLI для запуску behavior evaluation без Mongo і фронтенду.
+"""CLI для запуску behavior evaluation без Mongo і фронтенду (РЕАЛЬНИЙ YOLO).
 
-Приклади:
-    uv run python eval_cli.py --pair 20230609b-def
-    uv run python eval_cli.py --pair 20230711a-fan --frames 500 --warmup 80
-    uv run python eval_cli.py --pair 20230609b-def --json /tmp/result.json
-    uv run python eval_cli.py --pair 20230711a-fan --skip-video --frames 250
+Запуск з теки backend/:
+    uv run python -m eval.eval_cli --pair 20230609b-def
+    uv run python -m eval.eval_cli --pair 20230711a-fan --frames 500 --warmup 80
+    uv run python -m eval.eval_cli --pair 20230609b-def --json /tmp/result.json
 """
 import argparse
 import json
@@ -16,6 +15,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 import torch
+
+# Дефолт конфіга — відносно backend/ (parent.parent від цього файлу), не від cwd
+DEFAULT_CONFIG = str(Path(__file__).resolve().parent.parent / "config" / "eval_config.yaml")
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("eval_cli")
@@ -264,7 +266,7 @@ def main():
     parser.add_argument("--frames", type=int, default=0, help="Обмежити кількість кадрів (0=всі)")
     parser.add_argument("--warmup", type=int, default=80, help="Кадрів warm-up для fanning (default: 80)")
     parser.add_argument("--json", default="", help="Шлях для збереження JSON-результату")
-    parser.add_argument("--config", default="config/eval_config.yaml",
+    parser.add_argument("--config", default=DEFAULT_CONFIG,
                         help="YAML з гіперпараметрами (behavior/defense/stitch)")
     parser.add_argument("--verbose", action="store_true", help="Детальний лог")
     args = parser.parse_args()

@@ -1,1 +1,946 @@
-{"openapi": "3.1.0", "info": {"title": "Bee Monitor API", "version": "0.1.0"}, "paths": {"/jobs": {"get": {"tags": ["Jobs"], "summary": "List Jobs", "operationId": "list_jobs_jobs_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {}}}}}}, "post": {"tags": ["Jobs"], "summary": "Create Job", "operationId": "create_job_jobs_post", "requestBody": {"content": {"multipart/form-data": {"schema": {"$ref": "#/components/schemas/Body_create_job_jobs_post"}}}, "required": true}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/JobCreateResponse"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/jobs/{job_id}": {"get": {"tags": ["Jobs"], "summary": "Get Job", "operationId": "get_job_jobs__job_id__get", "parameters": [{"name": "job_id", "in": "path", "required": true, "schema": {"type": "string", "title": "Job Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}, "delete": {"tags": ["Jobs"], "summary": "Delete Job", "operationId": "delete_job_jobs__job_id__delete", "parameters": [{"name": "job_id", "in": "path", "required": true, "schema": {"type": "string", "title": "Job Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/jobs/test": {"post": {"tags": ["Jobs"], "summary": "Create Test Job", "operationId": "create_test_job_jobs_test_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/TestJobRequest"}}}, "required": true}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/JobCreateResponse"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/jobs/test/videos": {"get": {"tags": ["Jobs"], "summary": "List Test Videos", "description": "\u0421\u043f\u0438\u0441\u043e\u043a \u0442\u0435\u0441\u0442\u043e\u0432\u0438\u0445 \u0432\u0456\u0434\u0435\u043e \u0437 GT-\u0434\u0438\u0440\u0435\u043a\u0442\u043e\u0440\u0456\u0457 (\u0434\u043b\u044f Upload \u2192 \u0434\u0435\u043c\u043e-\u0437\u0430\u043f\u0438\u0441).", "operationId": "list_test_videos_jobs_test_videos_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {}}}}}}}, "/jobs/evaluate/test-pairs": {"get": {"tags": ["Jobs"], "summary": "List Evaluation Pairs", "description": "\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u0456 \u0432\u0456\u0434\u0435\u043e+GT \u043f\u0430\u0440\u0438 \u0437 GT_DATASET_PATH.", "operationId": "list_evaluation_pairs_jobs_evaluate_test_pairs_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"items": {"$ref": "#/components/schemas/TestPair"}, "type": "array", "title": "Response List Evaluation Pairs Jobs Evaluate Test Pairs Get"}}}}}}}, "/jobs/evaluate": {"post": {"tags": ["Jobs"], "summary": "Create Eval Job", "operationId": "create_eval_job_jobs_evaluate_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/EvaluateJobRequest"}}}, "required": true}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/JobCreateResponse"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/jobs/{job_id}/live": {"get": {"tags": ["Jobs"], "summary": "Get Job Live Stats", "operationId": "get_job_live_stats_jobs__job_id__live_get", "parameters": [{"name": "job_id", "in": "path", "required": true, "schema": {"type": "string", "title": "Job Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/analytics/export/md": {"get": {"tags": ["Analytics"], "summary": "Export Md Report", "description": "Generates a detailed Markdown report comparing up to two evaluated jobs.", "operationId": "export_md_report_analytics_export_md_get", "parameters": [{"name": "job_a_id", "in": "query", "required": false, "schema": {"type": "string", "title": "Job A Id"}}, {"name": "job_b_id", "in": "query", "required": false, "schema": {"type": "string", "title": "Job B Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"text/plain": {"schema": {"type": "string"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/analytics/summary": {"get": {"tags": ["Analytics"], "summary": "Get Summary", "operationId": "get_summary_analytics_summary_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {}}}}}}}, "/analytics/compare-approaches": {"get": {"tags": ["Analytics"], "summary": "Compare Approaches", "operationId": "compare_approaches_analytics_compare_approaches_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {}}}}}}}, "/models": {"get": {"summary": "List Models", "operationId": "list_models_models_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"items": {"$ref": "#/components/schemas/ModelInfo"}, "type": "array", "title": "Response List Models Models Get"}}}}}}}}, "components": {"schemas": {"Body_create_job_jobs_post": {"properties": {"video": {"type": "string", "contentMediaType": "application/octet-stream", "title": "Video"}, "config": {"type": "string", "title": "Config"}, "viz_config": {"type": "string", "title": "Viz Config"}}, "type": "object", "required": ["video", "config", "viz_config"], "title": "Body_create_job_jobs_post"}, "EvaluateJobRequest": {"properties": {"filename": {"type": "string", "title": "Filename"}, "gt_basename": {"type": "string", "title": "Gt Basename"}, "config": {"$ref": "#/components/schemas/ProcessConfig"}, "viz_config": {"$ref": "#/components/schemas/VizConfig"}, "eval_mode": {"type": "string", "title": "Eval Mode", "default": "counting"}, "skip_video": {"type": "boolean", "title": "Skip Video", "default": false}}, "type": "object", "required": ["filename", "gt_basename", "config", "viz_config"], "title": "EvaluateJobRequest"}, "HTTPValidationError": {"properties": {"detail": {"items": {"$ref": "#/components/schemas/ValidationError"}, "type": "array", "title": "Detail"}}, "type": "object", "title": "HTTPValidationError"}, "JobCreateResponse": {"properties": {"job_id": {"type": "string", "title": "Job Id"}, "status": {"type": "string", "title": "Status"}}, "type": "object", "required": ["job_id", "status"], "title": "JobCreateResponse"}, "ModelInfo": {"properties": {"name": {"type": "string", "title": "Name"}, "arch": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Arch"}, "variant": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Variant"}, "task": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Task"}, "imgsz": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Imgsz"}, "trained_with_half": {"type": "boolean", "title": "Trained With Half", "default": false}}, "type": "object", "required": ["name"], "title": "ModelInfo"}, "ProcessConfig": {"properties": {"tracker_name": {"type": "string", "title": "Tracker Name", "default": "bytetrack"}, "approach": {"type": "string", "title": "Approach", "default": "A"}, "line_position": {"type": "number", "title": "Line Position", "default": 0.0}, "conf_threshold": {"type": "number", "title": "Conf Threshold", "default": 0.2}, "iou_threshold": {"type": "number", "title": "Iou Threshold", "default": 0.8}, "max_detections": {"type": "integer", "title": "Max Detections", "default": 1000}, "imgsz": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Imgsz"}, "half_precision": {"type": "boolean", "title": "Half Precision", "default": false}, "batch_size": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Batch Size"}, "kp_conf_threshold": {"type": "number", "title": "Kp Conf Threshold", "default": 0.5}, "track_tail_length": {"type": "integer", "title": "Track Tail Length", "default": 30}, "angle_threshold_deg": {"type": "number", "title": "Angle Threshold Deg", "default": 60.0}, "ramp_detect_interval": {"type": "integer", "title": "Ramp Detect Interval", "default": 30}, "model_name": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Model Name"}, "behavior_foraging_speed_min": {"type": "number", "title": "Behavior Foraging Speed Min", "default": 100.0}, "behavior_foraging_angle_deg": {"type": "number", "title": "Behavior Foraging Angle Deg", "default": 60.0}, "behavior_fanning_max_displacement_px": {"type": "number", "title": "Behavior Fanning Max Displacement Px", "default": 10.0}, "behavior_fanning_duration_min": {"type": "number", "title": "Behavior Fanning Duration Min", "default": 1.0}, "behavior_fanning_angle_deg": {"type": "number", "title": "Behavior Fanning Angle Deg", "default": 90.0}, "behavior_washboarding_speed_max": {"type": "number", "title": "Behavior Washboarding Speed Max", "default": 60.0}, "behavior_washboarding_duration_min": {"type": "number", "title": "Behavior Washboarding Duration Min", "default": 2.0}, "behavior_washboarding_zcr_min": {"type": "number", "title": "Behavior Washboarding Zcr Min", "default": 2.0}, "defense_radius_factor": {"type": "number", "title": "Defense Radius Factor", "default": 2.0}, "defense_angle_deg": {"type": "number", "title": "Defense Angle Deg", "default": 45.0}, "defense_min_defenders": {"type": "integer", "title": "Defense Min Defenders", "default": 2}, "defense_duration_sec": {"type": "number", "title": "Defense Duration Sec", "default": 1.0}, "behavior_fanning_speed_max": {"type": "number", "title": "Behavior Fanning Speed Max", "default": 15.0}, "behavior_guarding_speed_min": {"type": "number", "title": "Behavior Guarding Speed Min", "default": 15.0}, "behavior_guarding_speed_max": {"type": "number", "title": "Behavior Guarding Speed Max", "default": 80.0}, "behavior_guarding_spread_ratio": {"type": "number", "title": "Behavior Guarding Spread Ratio", "default": 1.5}}, "type": "object", "title": "ProcessConfig"}, "TestJobRequest": {"properties": {"filename": {"type": "string", "title": "Filename"}, "config": {"$ref": "#/components/schemas/ProcessConfig"}, "viz_config": {"$ref": "#/components/schemas/VizConfig"}}, "type": "object", "required": ["filename", "config", "viz_config"], "title": "TestJobRequest"}, "TestPair": {"properties": {"basename": {"type": "string", "title": "Basename"}, "video_filename": {"type": "string", "title": "Video Filename"}, "size_mb": {"type": "number", "title": "Size Mb"}}, "type": "object", "required": ["basename", "video_filename", "size_mb"], "title": "TestPair"}, "ValidationError": {"properties": {"loc": {"items": {"anyOf": [{"type": "string"}, {"type": "integer"}]}, "type": "array", "title": "Location"}, "msg": {"type": "string", "title": "Message"}, "type": {"type": "string", "title": "Error Type"}, "input": {"title": "Input"}, "ctx": {"type": "object", "title": "Context"}}, "type": "object", "required": ["loc", "msg", "type"], "title": "ValidationError"}, "VizConfig": {"properties": {"show_boxes": {"type": "boolean", "title": "Show Boxes", "default": true}, "show_ids": {"type": "boolean", "title": "Show Ids", "default": true}, "show_confidence": {"type": "boolean", "title": "Show Confidence", "default": true}, "show_keypoints": {"type": "boolean", "title": "Show Keypoints", "default": true}, "show_ramp": {"type": "boolean", "title": "Show Ramp", "default": true}, "show_behaviors": {"type": "boolean", "title": "Show Behaviors", "default": true}, "show_counting_line": {"type": "boolean", "title": "Show Counting Line", "default": true}, "show_stats_overlay": {"type": "boolean", "title": "Show Stats Overlay", "default": true}, "show_tracks": {"type": "boolean", "title": "Show Tracks", "default": true}, "show_orientation": {"type": "boolean", "title": "Show Orientation", "default": true}, "show_recent_events": {"type": "boolean", "title": "Show Recent Events", "default": true}}, "type": "object", "title": "VizConfig"}}}}
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Bee Monitor API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/jobs": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List Jobs",
+        "operationId": "list_jobs_jobs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Create Job",
+        "operationId": "create_job_jobs_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_job_jobs_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get Job",
+        "operationId": "get_job_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Delete Job",
+        "operationId": "delete_job_jobs__job_id__delete",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/test": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Create Test Job",
+        "operationId": "create_test_job_jobs_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/test/videos": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List Test Videos",
+        "description": "\u0421\u043f\u0438\u0441\u043e\u043a \u0442\u0435\u0441\u0442\u043e\u0432\u0438\u0445 \u0432\u0456\u0434\u0435\u043e \u0437 GT-\u0434\u0438\u0440\u0435\u043a\u0442\u043e\u0440\u0456\u0457 (\u0434\u043b\u044f Upload \u2192 \u0434\u0435\u043c\u043e-\u0437\u0430\u043f\u0438\u0441).",
+        "operationId": "list_test_videos_jobs_test_videos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/evaluate/test-pairs": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List Evaluation Pairs",
+        "description": "\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u0456 \u0432\u0456\u0434\u0435\u043e+GT \u043f\u0430\u0440\u0438 \u0437 GT_DATASET_PATH.",
+        "operationId": "list_evaluation_pairs_jobs_evaluate_test_pairs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TestPair"
+                  },
+                  "type": "array",
+                  "title": "Response List Evaluation Pairs Jobs Evaluate Test Pairs Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/evaluate": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Create Eval Job",
+        "operationId": "create_eval_job_jobs_evaluate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}/live": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get Job Live Stats",
+        "operationId": "get_job_live_stats_jobs__job_id__live_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/export/md": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Export Md Report",
+        "description": "Generates a detailed Markdown report comparing up to two evaluated jobs.",
+        "operationId": "export_md_report_analytics_export_md_get",
+        "parameters": [
+          {
+            "name": "job_a_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Job A Id"
+            }
+          },
+          {
+            "name": "job_b_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Job B Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/summary": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Get Summary",
+        "operationId": "get_summary_analytics_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/compare-approaches": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Compare Approaches",
+        "operationId": "compare_approaches_analytics_compare_approaches_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/models": {
+      "get": {
+        "summary": "List Models",
+        "operationId": "list_models_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelInfo"
+                  },
+                  "type": "array",
+                  "title": "Response List Models Models Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_create_job_jobs_post": {
+        "properties": {
+          "video": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Video"
+          },
+          "config": {
+            "type": "string",
+            "title": "Config"
+          },
+          "viz_config": {
+            "type": "string",
+            "title": "Viz Config"
+          }
+        },
+        "type": "object",
+        "required": [
+          "video",
+          "config",
+          "viz_config"
+        ],
+        "title": "Body_create_job_jobs_post"
+      },
+      "EvaluateJobRequest": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "gt_basename": {
+            "type": "string",
+            "title": "Gt Basename"
+          },
+          "config": {
+            "$ref": "#/components/schemas/ProcessConfig"
+          },
+          "viz_config": {
+            "$ref": "#/components/schemas/VizConfig"
+          },
+          "eval_mode": {
+            "type": "string",
+            "title": "Eval Mode",
+            "default": "counting"
+          },
+          "skip_video": {
+            "type": "boolean",
+            "title": "Skip Video",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "gt_basename",
+          "config",
+          "viz_config"
+        ],
+        "title": "EvaluateJobRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "JobCreateResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "JobCreateResponse"
+      },
+      "ModelInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "arch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arch"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "imgsz": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imgsz"
+          },
+          "trained_with_half": {
+            "type": "boolean",
+            "title": "Trained With Half",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ModelInfo"
+      },
+      "ProcessConfig": {
+        "properties": {
+          "tracker_name": {
+            "type": "string",
+            "title": "Tracker Name",
+            "default": "bytetrack"
+          },
+          "approach": {
+            "type": "string",
+            "title": "Approach",
+            "default": "A"
+          },
+          "line_position": {
+            "type": "number",
+            "title": "Line Position",
+            "default": 0.0
+          },
+          "conf_threshold": {
+            "type": "number",
+            "title": "Conf Threshold",
+            "default": 0.2
+          },
+          "iou_threshold": {
+            "type": "number",
+            "title": "Iou Threshold",
+            "default": 0.8
+          },
+          "max_detections": {
+            "type": "integer",
+            "title": "Max Detections",
+            "default": 1000
+          },
+          "imgsz": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imgsz"
+          },
+          "half_precision": {
+            "type": "boolean",
+            "title": "Half Precision",
+            "default": false
+          },
+          "batch_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Size"
+          },
+          "kp_conf_threshold": {
+            "type": "number",
+            "title": "Kp Conf Threshold",
+            "default": 0.5
+          },
+          "track_tail_length": {
+            "type": "integer",
+            "title": "Track Tail Length",
+            "default": 30
+          },
+          "angle_threshold_deg": {
+            "type": "number",
+            "title": "Angle Threshold Deg",
+            "default": 60.0
+          },
+          "ramp_detect_interval": {
+            "type": "integer",
+            "title": "Ramp Detect Interval",
+            "default": 30
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "skip_video": {
+            "type": "boolean",
+            "title": "Skip Video",
+            "default": false
+          },
+          "behavior_foraging_speed_min": {
+            "type": "number",
+            "title": "Behavior Foraging Speed Min",
+            "default": 100.0
+          },
+          "behavior_foraging_angle_deg": {
+            "type": "number",
+            "title": "Behavior Foraging Angle Deg",
+            "default": 60.0
+          },
+          "behavior_fanning_max_disp": {
+            "type": "number",
+            "title": "Behavior Fanning Max Disp",
+            "default": 60.0
+          },
+          "behavior_fanning_duration_min": {
+            "type": "number",
+            "title": "Behavior Fanning Duration Min",
+            "default": 0.6
+          },
+          "behavior_fanning_angle_deg": {
+            "type": "number",
+            "title": "Behavior Fanning Angle Deg",
+            "default": 90.0
+          },
+          "behavior_fanning_zcr_min": {
+            "type": "number",
+            "title": "Behavior Fanning Zcr Min",
+            "default": 15.0
+          },
+          "behavior_fanning_motion_min": {
+            "type": "number",
+            "title": "Behavior Fanning Motion Min",
+            "default": 0.05
+          },
+          "behavior_fanning_require_body": {
+            "type": "boolean",
+            "title": "Behavior Fanning Require Body",
+            "default": false
+          },
+          "behavior_fanning_priority": {
+            "type": "boolean",
+            "title": "Behavior Fanning Priority",
+            "default": true
+          },
+          "behavior_washboarding_speed_min": {
+            "type": "number",
+            "title": "Behavior Washboarding Speed Min",
+            "default": 5.0
+          },
+          "behavior_washboarding_speed_max": {
+            "type": "number",
+            "title": "Behavior Washboarding Speed Max",
+            "default": 60.0
+          },
+          "behavior_washboarding_max_disp": {
+            "type": "number",
+            "title": "Behavior Washboarding Max Disp",
+            "default": 40.0
+          },
+          "behavior_washboarding_duration_min": {
+            "type": "number",
+            "title": "Behavior Washboarding Duration Min",
+            "default": 2.0
+          },
+          "behavior_washboarding_zcr_min": {
+            "type": "number",
+            "title": "Behavior Washboarding Zcr Min",
+            "default": 3.0
+          },
+          "behavior_washboarding_body_angle_deg": {
+            "type": "number",
+            "title": "Behavior Washboarding Body Angle Deg",
+            "default": 120.0
+          },
+          "defense_radius_factor": {
+            "type": "number",
+            "title": "Defense Radius Factor",
+            "default": 2.0
+          },
+          "defense_angle_deg": {
+            "type": "number",
+            "title": "Defense Angle Deg",
+            "default": 45.0
+          },
+          "defense_min_defenders": {
+            "type": "integer",
+            "title": "Defense Min Defenders",
+            "default": 2
+          },
+          "defense_duration_sec": {
+            "type": "number",
+            "title": "Defense Duration Sec",
+            "default": 0.3
+          },
+          "defense_window_frames": {
+            "type": "integer",
+            "title": "Defense Window Frames",
+            "default": 60
+          },
+          "defense_min_appearances": {
+            "type": "integer",
+            "title": "Defense Min Appearances",
+            "default": 2
+          },
+          "defense_visual_threshold": {
+            "type": "integer",
+            "title": "Defense Visual Threshold",
+            "default": 8
+          },
+          "stitch_max_dist": {
+            "type": "number",
+            "title": "Stitch Max Dist",
+            "default": 30.0
+          },
+          "stitch_max_frames": {
+            "type": "integer",
+            "title": "Stitch Max Frames",
+            "default": 45
+          }
+        },
+        "type": "object",
+        "title": "ProcessConfig"
+      },
+      "TestJobRequest": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "config": {
+            "$ref": "#/components/schemas/ProcessConfig"
+          },
+          "viz_config": {
+            "$ref": "#/components/schemas/VizConfig"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "config",
+          "viz_config"
+        ],
+        "title": "TestJobRequest"
+      },
+      "TestPair": {
+        "properties": {
+          "basename": {
+            "type": "string",
+            "title": "Basename"
+          },
+          "video_filename": {
+            "type": "string",
+            "title": "Video Filename"
+          },
+          "size_mb": {
+            "type": "number",
+            "title": "Size Mb"
+          }
+        },
+        "type": "object",
+        "required": [
+          "basename",
+          "video_filename",
+          "size_mb"
+        ],
+        "title": "TestPair"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VizConfig": {
+        "properties": {
+          "show_boxes": {
+            "type": "boolean",
+            "title": "Show Boxes",
+            "default": true
+          },
+          "show_ids": {
+            "type": "boolean",
+            "title": "Show Ids",
+            "default": true
+          },
+          "show_confidence": {
+            "type": "boolean",
+            "title": "Show Confidence",
+            "default": true
+          },
+          "show_keypoints": {
+            "type": "boolean",
+            "title": "Show Keypoints",
+            "default": true
+          },
+          "show_ramp": {
+            "type": "boolean",
+            "title": "Show Ramp",
+            "default": true
+          },
+          "show_behaviors": {
+            "type": "boolean",
+            "title": "Show Behaviors",
+            "default": true
+          },
+          "show_counting_line": {
+            "type": "boolean",
+            "title": "Show Counting Line",
+            "default": true
+          },
+          "show_stats_overlay": {
+            "type": "boolean",
+            "title": "Show Stats Overlay",
+            "default": true
+          },
+          "show_tracks": {
+            "type": "boolean",
+            "title": "Show Tracks",
+            "default": true
+          },
+          "show_orientation": {
+            "type": "boolean",
+            "title": "Show Orientation",
+            "default": true
+          },
+          "show_recent_events": {
+            "type": "boolean",
+            "title": "Show Recent Events",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "VizConfig"
+      }
+    }
+  }
+}

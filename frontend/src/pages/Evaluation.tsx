@@ -27,12 +27,15 @@ const DEFAULT_CONFIG: ProcessConfig = {
   angle_threshold_deg: 60,
   ramp_detect_interval: 30,
   model_name: null,
+  // Оптимальні параметри класифікації (відкалібровано, дзеркало ProcessConfig)
   behavior_foraging_speed_min: 100,
-  behavior_fanning_speed_max: 15,
-  behavior_fanning_duration_min: 1,
-  behavior_guarding_speed_min: 15,
-  behavior_guarding_speed_max: 80,
-  behavior_guarding_spread_ratio: 1.5,
+  behavior_fanning_max_disp: 60,
+  behavior_fanning_duration_min: 0.6,
+  behavior_fanning_require_body: false,
+  behavior_fanning_priority: true,
+  defense_min_appearances: 2,
+  stitch_max_dist: 30,
+  stitch_max_frames: 45,
 };
 
 const DEFAULT_VIZ: VizConfig = {

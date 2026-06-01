@@ -26,12 +26,17 @@ export default function UploadPage() {
     conf_threshold: 0.20, kp_conf_threshold: 0.5, track_tail_length: 30,
     angle_threshold_deg: 60.0, ramp_detect_interval: 30,
     model_name: null as string | null,
+    skip_video: false,
+    // Оптимальні параметри класифікації поведінки (відкалібровано за датасетом
+    // PLOS ONE 2025; ключі збігаються з services/behavior.py). У UI не редагуються.
     behavior_foraging_speed_min: 100,
-    behavior_fanning_speed_max: 15,
-    behavior_fanning_duration_min: 1.0,
-    behavior_guarding_speed_min: 15,
-    behavior_guarding_speed_max: 80,
-    behavior_guarding_spread_ratio: 1.5,
+    behavior_fanning_max_disp: 60,
+    behavior_fanning_duration_min: 0.6,
+    behavior_fanning_require_body: false,
+    behavior_fanning_priority: true,
+    defense_min_appearances: 2,
+    stitch_max_dist: 30,
+    stitch_max_frames: 45,
   } as unknown as ProcessConfig);
 
   const [vizConfig, setVizConfig] = useLocalStorageState<VizConfig>('viz_config_v2', {
@@ -212,7 +217,7 @@ export default function UploadPage() {
             </div>
           )}
 
-          {job && job.status === 'complete' && job.result && (
+          {job && job.status === 'complete' && job.result && job.result.annotated_video_url && (
             <div className="w-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
               <div className="w-full flex justify-center relative">
                  <VideoPlayer
@@ -229,6 +234,28 @@ export default function UploadPage() {
                   <Download size={16} /> Завантажити відео
                 </a>
               </div>
+            </div>
+          )}
+
+          {/* Швидкий режим: відео немає — показуємо лише статистику */}
+          {job && job.status === 'complete' && job.result && !job.result.annotated_video_url && (
+            <div className="w-full max-w-lg p-8 text-center animate-in fade-in zoom-in-95 duration-300">
+              <div className="w-16 h-16 rounded-full bg-[var(--accent)]/15 border border-[var(--accent)]/40 flex items-center justify-center mx-auto mb-4 text-3xl">⚡</div>
+              <h3 className="text-xl font-bold text-[var(--accent)] mb-1">Аналіз завершено</h3>
+              <p className="text-xs text-gray-400 mb-6">
+                Швидкий режим · {job.result.duration_sec.toFixed(1)}с ({job.result.fps_processed.toFixed(1)} кадрів/с)
+              </p>
+              <div className="grid grid-cols-2 gap-3 text-left">
+                <div className="bg-[var(--bg-panel)] rounded-lg p-4 border border-gray-800">
+                  <p className="text-3xl font-bold text-green-400">{job.result.total_in ?? 0}</p>
+                  <p className="text-xs text-gray-500 mt-1">Влетіло</p>
+                </div>
+                <div className="bg-[var(--bg-panel)] rounded-lg p-4 border border-gray-800">
+                  <p className="text-3xl font-bold text-amber-400">{job.result.total_out ?? 0}</p>
+                  <p className="text-xs text-gray-500 mt-1">Вилетіло</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-600 mt-4">Повна статистика — на панелі праворуч</p>
             </div>
           )}
           

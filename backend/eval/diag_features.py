@@ -44,15 +44,16 @@ def main():
     ap.add_argument("--pair", required=True)
     ap.add_argument("--frames", type=int, default=0)
     ap.add_argument("--match-dist", type=float, default=30.0)
-    ap.add_argument("--config", default="config/eval_config.yaml")
+    from pathlib import Path as _P
+    ap.add_argument("--config", default=str(_P(__file__).resolve().parent.parent / "config" / "eval_config.yaml"))
     args = ap.parse_args()
 
     from config import settings
     from services.evaluation.gt_loader import gt_paths, load_gt_behaviors, denormalize, load_entrance_zone
     from services.pipeline import VideoPipeline
     from services.pipeline_stages import BehaviorStage
-    import detection_cache as dc
-    from eval_fast import base_config, load_yaml_config
+    from eval import detection_cache as dc
+    from eval.eval_fast import base_config, load_yaml_config
 
     paths = gt_paths(args.pair)
     video_path = str(paths["video"])

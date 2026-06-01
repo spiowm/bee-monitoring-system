@@ -59,8 +59,9 @@ async def create_job(
     }
     await db["jobs"].insert_one(job_doc)
 
+    # skip_video (швидкий режим без рендеру) їде всередині config — process_video його прочитає
     background_tasks.add_task(process_video, job_id, file_path, cfg, v_cfg)
-    
+
     return {"job_id": job_id, "status": "pending"}
 
 @router.get("/{job_id}")

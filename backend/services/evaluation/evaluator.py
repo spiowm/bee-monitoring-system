@@ -48,14 +48,15 @@ async def run_evaluation(
 
     zone = load_entrance_zone(paths["entrance_zone"])
 
-    await process_video(job_id, video_path, config, viz_config, gt_entrance_zone=zone, skip_video=skip_video, eval_mode="behavior")
-
-    job = await db["jobs"].find_one({"job_id": job_id}, {"_id": 0})
-    if not job or job.get("status") != "complete":
+    # process_video повертає повний result у пам'яті (з per_frame_behaviors —
+    # він має int-ключі й НЕ зберігається в Mongo, тож читаємо з повернутого значення)
+    result = await process_video(
+        job_id, video_path, config, viz_config,
+        gt_entrance_zone=zone, skip_video=skip_video, eval_mode="behavior",
+    )
+    if not result:
         logger.warning(f"Job {job_id} не завершився успішно — пропускаю evaluation")
         return
-
-    result = job.get("result") or {}
 
     gt_df = denormalize(load_gt_behaviors(paths["tracks"]), width, height)
     gt_full_frames = int(gt_df["frame"].max())
@@ -69,6 +70,7 @@ async def run_evaluation(
     metrics = build_behavior_evaluation(
         gt_df, pred_per_frame, pred_events, zone, fps,
         warmup_frames=warmup_frames,
+        total_frames=total_frames,
     )
 
     # GT-відео з поведінковими мітками

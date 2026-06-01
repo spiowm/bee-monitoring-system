@@ -17,28 +17,39 @@ class ProcessConfig(BaseModel):
     angle_threshold_deg: float = 60.0
     ramp_detect_interval: int = 30
     model_name: Optional[str] = None  # None = default bee_pose model
-    # Behavior thresholds (PLOS ONE 2025 spec, Table 1)
-    # Foraging: Vfor>100 px/s, Tfor>0.1s, Afor=±60° from entrance
+    skip_video: bool = False          # швидкий режим: не рендерити вихідне відео (тільки статистика)
+    # ── Параметри класифікації поведінки ─────────────────────────────────────
+    # Оптимальні значення (свіпи 2026-05-30, дзеркало config/eval_config.yaml).
+    # Ключі мусять збігатися з тими, що читає services/behavior.py та pipeline.
+    # Foraging: Vfor>100 px/s, рух до льотка ±60°
     behavior_foraging_speed_min: float = 100.0
     behavior_foraging_angle_deg: float = 60.0
-    # Fanning: Dfan<10 px, Tfan>1s, Afan=±90° from entrance
-    behavior_fanning_max_displacement_px: float = 10.0
-    behavior_fanning_duration_min: float = 1.0
+    # Fanning: головний дискримінатор — СТАЦІОНАРНІСТЬ (max_disp), а не насичений ZCR
+    behavior_fanning_max_disp: float = 60.0        # px зміщення у вікні (бджола стоїть)
+    behavior_fanning_duration_min: float = 0.6     # нижче — для фрагментованих треків
     behavior_fanning_angle_deg: float = 90.0
-    # Washboarding: Vwash<60 px/s, Twash>2s, ZCR>2Hz
+    behavior_fanning_zcr_min: float = 15.0         # лишено як дешевий гейт (ZCR насичений)
+    behavior_fanning_motion_min: float = 0.05
+    behavior_fanning_require_body: bool = False    # не відкидати бджіл без keypoints
+    behavior_fanning_priority: bool = True         # стаціонарна fanning > foraging (jitter)
+    # Washboarding: ZCR 3–15 Гц, 5<V<60, обмежений рух (у датасеті лише yt8)
+    behavior_washboarding_speed_min: float = 5.0
     behavior_washboarding_speed_max: float = 60.0
+    behavior_washboarding_max_disp: float = 40.0
     behavior_washboarding_duration_min: float = 2.0
-    behavior_washboarding_zcr_min: float = 2.0
-    # Defense: Rdef = factor * bee_length, Adef=±45°, Ndef≥2, Tdef≥1s
+    behavior_washboarding_zcr_min: float = 3.0
+    behavior_washboarding_body_angle_deg: float = 120.0
+    # Defense: Rdef=factor·bee_length, Adef=±45°, Ndef≥2
     defense_radius_factor: float = 2.0
     defense_angle_deg: float = 45.0
     defense_min_defenders: int = 2
-    defense_duration_sec: float = 1.0
-    # Legacy (kept for backward-compat with existing job docs)
-    behavior_fanning_speed_max: float = 15.0
-    behavior_guarding_speed_min: float = 15.0
-    behavior_guarding_speed_max: float = 80.0
-    behavior_guarding_spread_ratio: float = 1.5
+    defense_duration_sec: float = 0.3
+    defense_window_frames: int = 60
+    defense_min_appearances: int = 2               # класифікація поведінки (→ метрики)
+    defense_visual_threshold: int = 8             # поріг для відображення кола (≫min_appearances)
+    # Track stitching (Temporal Re-ID у TrackUpdateStage)
+    stitch_max_dist: float = 30.0
+    stitch_max_frames: int = 45
 
 class VizConfig(BaseModel):
     show_boxes: bool = True

@@ -4,11 +4,10 @@
 закешованих детекцій для одного або кількох відео і друкує зведену таблицю.
 YOLO викликається лише раз на відео (для побудови кешу); далі — секунди.
 
-Приклади:
-    uv run python eval_fast.py                       # всі 3, повні, дефолт-конфіг
-    uv run python eval_fast.py --config config/eval_config.yaml
-    uv run python eval_fast.py --pairs 20230711a-fan --frames 2000
-    uv run python eval_fast.py --rebuild             # перебудувати кеш
+Запуск (з теки backend/):
+    uv run python -m eval.eval_fast                    # всі 3, повні, дефолт-конфіг
+    uv run python -m eval.eval_fast --pairs 20230711a-fan --frames 2000
+    uv run python -m eval.eval_fast --rebuild          # перебудувати кеш
 """
 import argparse
 import json
@@ -26,8 +25,11 @@ logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(mes
 logging.getLogger("ultralytics").setLevel(logging.ERROR)
 logging.getLogger("supervision").setLevel(logging.ERROR)
 
-from eval_cli import (_color, _fmt_pct, _print_perclass_table, _print_foraging,
-                      _print_confusion, _print_frame_presence)
+from eval.eval_cli import (_color, _fmt_pct, _print_perclass_table, _print_foraging,
+                           _print_confusion, _print_frame_presence)
+
+# Дефолт конфіга — відносно backend/ (parent.parent від цього файлу), не від cwd
+DEFAULT_CONFIG = str(Path(__file__).resolve().parent.parent / "config" / "eval_config.yaml")
 
 DEFAULT_PAIRS = ["20230609b-def", "20230711a-fan", "20230711b-fan"]
 
@@ -62,7 +64,7 @@ def eval_one(pair, model, config, warmup, frames_arg, rebuild, device):
     from services.evaluation.gt_loader import gt_paths, load_gt_behaviors, denormalize, load_entrance_zone
     from services.evaluation.behavior_eval import build_behavior_evaluation
     from services.pipeline import VideoPipeline
-    import detection_cache as dc
+    from eval import detection_cache as dc
 
     paths = gt_paths(pair)
     video_path = str(paths["video"])
@@ -215,7 +217,7 @@ def main():
                     help="кома-список пар (default: всі 3)")
     ap.add_argument("--frames", type=int, default=0, help="ліміт кадрів (0=всі)")
     ap.add_argument("--warmup", type=int, default=80)
-    ap.add_argument("--config", default="config/eval_config.yaml")
+    ap.add_argument("--config", default=DEFAULT_CONFIG)
     ap.add_argument("--set", action="append", default=[], metavar="KEY=VAL",
                     help="override конфігу (можна кілька): --set behavior_fanning_max_disp=60")
     ap.add_argument("--rebuild", action="store_true", help="перебудувати кеш детекцій")
@@ -258,7 +260,7 @@ def main():
     # Модель потрібна лише якщо доведеться будувати кеш — завантажуємо лениво
     model = None
     from config import settings
-    import detection_cache as dc
+    from eval import detection_cache as dc
     need_model = args.rebuild
     if not need_model:
         for pair in pairs:
