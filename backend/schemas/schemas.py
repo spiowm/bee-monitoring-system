@@ -4,7 +4,7 @@ from datetime import datetime
 
 class ProcessConfig(BaseModel):
     tracker_name: str = "bytetrack"
-    approach: str = "A"
+    approach: str = "B"  # B = з валідацією пози (рекомендований за замовчуванням)
     line_position: float = 0.0
     conf_threshold: float = 0.20
     iou_threshold: float = 0.8

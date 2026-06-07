@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getSummaryAnalyticsSummaryGet,
-  compareApproachesAnalyticsCompareApproachesGet,
   listJobsJobsGet,
   deleteJobJobsJobIdDelete,
 } from '../api/generated';
@@ -12,7 +11,7 @@ import {
 } from 'recharts';
 import {
   BarChart2, Activity, Layers, ActivitySquare, CheckCircle,
-  History, Trash2, Play, Download, X, Info, Trophy, FlaskConical,
+  History, Trash2, Play, Download, X, Info, FlaskConical,
 } from 'lucide-react';
 import type { Job } from '../types';
 import JobDetailModal from '../components/JobDetailModal';
@@ -56,13 +55,7 @@ export default function AnalyticsPage() {
     },
   });
 
-  const { data: compare, isLoading: loadingCompare } = useQuery({
-    queryKey: ['analyticsCompare'],
-    queryFn: async () => {
-      const { data } = await compareApproachesAnalyticsCompareApproachesGet();
-      return data as any;
-    },
-  });
+
 
   const { data: jobs = [], isLoading: loadingJobs } = useQuery({
     queryKey: ['jobs'],
@@ -108,7 +101,7 @@ export default function AnalyticsPage() {
       fps: parseFloat(j.result!.fps_processed.toFixed(1)),
     }));
 
-  const loading = loadingSummary || loadingCompare || loadingJobs;
+  const loading = loadingSummary || loadingJobs;
   if (loading) {
     return (
       <div className="animate-pulse text-center p-12 text-[var(--accent)]">
@@ -160,64 +153,6 @@ export default function AnalyticsPage() {
         <BarChart2 className="text-[var(--accent)]" /> Аналітика і дослідження
       </h1>
 
-      {/* HERO: Approach A vs B — головна знахідка дипломної */}
-      <div className="card space-y-5 border-2 border-[var(--accent)] shadow-[0_0_30px_rgba(240,180,41,0.15)] bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-panel)]">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h2 className="text-lg font-bold text-[var(--accent)] uppercase tracking-wider flex items-center gap-2">
-              <FlaskConical size={20} /> Метод А проти Б
-            </h2>
-            <p className="text-sm text-gray-400 mt-1">
-              Дослідницьке порівняння алгоритмів підрахунку на {(compare?.approach_a_count ?? 0) + (compare?.approach_b_count ?? 0)} завершених сесіях
-            </p>
-          </div>
-          <span className="bg-[var(--accent)]/20 text-[var(--accent)] text-xs font-semibold px-3 py-1.5 rounded-full border border-[var(--accent)]/40">
-            Ключова знахідка
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-[var(--bg-panel)] p-5 rounded-xl border border-gray-700">
-            <div className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Метод А — траєкторія</div>
-            <div className="text-4xl font-bold font-mono">{compare?.avg_in_a?.toFixed(1) ?? '—'}</div>
-            <div className="text-xs text-gray-500 mt-2">
-              сер. вліт / сесія · {compare?.approach_a_count ?? 0} зразків
-            </div>
-          </div>
-
-          <div className="bg-[var(--bg-panel)] p-5 rounded-xl border-2 border-[var(--accent)] relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-[var(--accent)] text-xs text-black font-bold px-3 py-1 rounded-bl-lg flex items-center gap-1">
-              <Trophy size={12} /> РЕКОМЕНДОВАНО
-            </div>
-            <div className="text-xs font-semibold text-[var(--accent)] mb-2 uppercase tracking-wide">Метод Б — pose-validated</div>
-            <div className="text-4xl font-bold font-mono text-[var(--accent)]">{compare?.avg_in_b?.toFixed(1) ?? '—'}</div>
-            <div className="text-xs text-gray-400 mt-2">
-              сер. вліт / сесія · {compare?.approach_b_count ?? 0} зразків
-            </div>
-          </div>
-
-          <div className="bg-[var(--bg-panel)] p-5 rounded-xl border border-blue-900/50">
-            <div className="text-xs font-semibold text-blue-400 mb-2 uppercase tracking-wide">Pose-валідація</div>
-            <div className="text-4xl font-bold font-mono text-blue-400">{compare?.pose_confirmed_rate?.toFixed(1) ?? '—'}%</div>
-            <div className="text-xs text-gray-500 mt-2">
-              подій підтверджено вектором голова→жало
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-[var(--accent)]/10 border-l-4 border-[var(--accent)] p-4 rounded text-sm text-gray-200 leading-relaxed">
-          <strong className="text-[var(--accent)]">Висновок: </strong>
-          {(compare?.approach_a_count ?? 0) + (compare?.approach_b_count ?? 0) === 0 ? (
-            <>Недостатньо даних — запустіть кілька сесій з різними методами для порівняння.</>
-          ) : (
-            <>
-              Метод Б підтверджує {compare?.pose_confirmed_rate?.toFixed(1) ?? '—'}% подій pose-вектором голова→жало,
-              відсіюючи помилкові спрацювання траєкторії. Fallback на Метод А зберігає стабільність,
-              коли ключові точки невидні.
-            </>
-          )}
-        </div>
-      </div>
 
       {/* Overview Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

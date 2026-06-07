@@ -14,7 +14,7 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState';
 
 const DEFAULT_CONFIG: ProcessConfig = {
   tracker_name: 'bytetrack',
-  approach: 'A',
+  approach: 'B',
   line_position: 0.0,
   conf_threshold: 0.2,
   iou_threshold: 0.8,

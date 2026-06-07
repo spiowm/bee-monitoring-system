@@ -12,6 +12,7 @@ import type { ProcessConfig, VizConfig, Job, LiveStats } from '../types';
 import JobConfigPanel from '../components/JobConfigPanel';
 import LiveStatsPanel from '../components/LiveStatsPanel';
 import VideoPlayer from '../components/VideoPlayer';
+import RecommendationsSection from '../components/RecommendationsSection';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { Video, Download, AlertCircle, Square } from 'lucide-react';
 
@@ -22,7 +23,7 @@ export default function UploadPage() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [config, setConfig] = useState({
-    tracker_name: 'bytetrack', approach: 'A', line_position: 0.5,
+    tracker_name: 'bytetrack', approach: 'B', line_position: 0.5,
     conf_threshold: 0.20, kp_conf_threshold: 0.5, track_tail_length: 30,
     angle_threshold_deg: 60.0, ramp_detect_interval: 30,
     model_name: null as string | null,
@@ -267,6 +268,11 @@ export default function UploadPage() {
             </div>
           )}
         </div>
+
+        {/* Рекомендації по стану вулика (показуються після завершення) */}
+        {job && job.status === 'complete' && job.result?.recommendations && job.result.recommendations.length > 0 && (
+          <RecommendationsSection recommendations={job.result.recommendations} />
+        )}
       </div>
 
       {/* 3. RIGHT COLUMN: Live Stats */}

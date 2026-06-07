@@ -13,12 +13,6 @@ const BEHAVIOR_LABELS: Record<string, string> = {
   defense: 'захист',
 };
 
-const METHOD_BADGE: Record<string, { label: string; cls: string }> = {
-  pose_confirmed: { label: 'pose✓', cls: 'bg-blue-900/50 text-blue-300 border-blue-700/50' },
-  trajectory_only: { label: 'траєкторія', cls: 'bg-gray-800 text-gray-400 border-gray-700' },
-  trajectory_fallback: { label: 'fallback', cls: 'bg-gray-800 text-gray-400 border-gray-700' },
-};
-
 function formatTime(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
@@ -44,7 +38,6 @@ export default function EventTicker({ events }: Props) {
           {ordered.map((e, i) => {
             const isIn = e.direction === 'IN';
             const dirColor = isIn ? 'var(--color-in)' : 'var(--color-out)';
-            const method = METHOD_BADGE[e.method] || METHOD_BADGE.trajectory_only;
             return (
               <li
                 key={`${e.frame}-${e.track_id}-${i}`}
@@ -56,11 +49,8 @@ export default function EventTicker({ events }: Props) {
                   {isIn ? 'IN' : 'OUT'}
                 </span>
                 <span className="text-gray-400 font-mono w-12 shrink-0">#{e.track_id}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${method.cls} shrink-0`}>
-                  {method.label}
-                </span>
                 {e.behavior_class && (
-                  <span className="text-[10px] text-gray-500 truncate ml-auto">
+                  <span className="text-[11px] text-gray-400 truncate ml-auto">
                     {BEHAVIOR_LABELS[e.behavior_class] || e.behavior_class}
                   </span>
                 )}

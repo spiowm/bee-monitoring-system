@@ -151,17 +151,18 @@ export default function JobConfigPanel({
         <label className="text-xs text-gray-400 mb-1 block">Метод підрахунку</label>
         <div className="flex flex-col gap-2">
           <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input type="radio" checked={config.approach === 'B'} onChange={() => set({ approach: 'B' })} className="accent-[var(--accent)] mt-0.5" />
+            <span>
+              <span className="font-medium text-[var(--accent)]">Б</span> — З валідацією пози
+              <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent)]/15 text-[var(--accent)] align-middle">рекомендовано</span>
+              <span className="block text-[11px] text-gray-500 mt-0.5">Перевіряє напрямок вектора голова→жало — точніший підрахунок</span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
             <input type="radio" checked={config.approach === 'A'} onChange={() => set({ approach: 'A' })} className="accent-[var(--accent)] mt-0.5" />
             <span>
               <span className="font-medium">А</span> — За траєкторією
               <span className="block text-[11px] text-gray-500 mt-0.5">Фіксує перетин лінії за рухом центра бджоли</span>
-            </span>
-          </label>
-          <label className="flex items-start gap-2 text-sm cursor-pointer">
-            <input type="radio" checked={config.approach === 'B'} onChange={() => set({ approach: 'B' })} className="accent-[var(--accent)] mt-0.5" />
-            <span>
-              <span className="font-medium text-[var(--accent)]">Б</span> — З валідацією пози
-              <span className="block text-[11px] text-gray-500 mt-0.5">Перевіряє напрямок вектора голова→жало</span>
             </span>
           </label>
         </div>
