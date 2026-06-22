@@ -936,6 +936,16 @@
             "type": "boolean",
             "title": "Show Recent Events",
             "default": true
+          },
+          "show_defense_circles": {
+            "type": "boolean",
+            "title": "Show Defense Circles",
+            "default": true
+          },
+          "show_crossing_badges": {
+            "type": "boolean",
+            "title": "Show Crossing Badges",
+            "default": true
           }
         },
         "type": "object",

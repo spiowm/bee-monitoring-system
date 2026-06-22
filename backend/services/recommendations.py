@@ -239,24 +239,8 @@ def generate_recommendations(result: dict) -> list[Recommendation]:
                 details={"pose_ratio": round(pose_ratio, 3), "pose_ok": pose_ok, "pose_total": pose_total, "threshold": _POSE_LOW_RATIO},
             ))
 
-        # 10b. Ефективність pose-фільтра — скільки фейкових перетинів відсіяно
-        a_total = pose_ok + pose_fb + pose_rejected  # скільки зарахував би Approach A
-        if a_total > 5:
-            rejected_ratio = _ratio(pose_rejected, a_total)
-            if rejected_ratio >= 0.20:
-                recs.append(Recommendation(
-                    severity="info",
-                    icon="🎯",
-                    title=f"Pose-фільтр відсіяв {rejected_ratio*100:.0f}% перетинів",
-                    description=(
-                        f"Approach A нарахував би {a_total} подій, Approach B відсіяв "
-                        f"{pose_rejected} як хибні (вектор пози не співпав з рухом). "
-                        "Це показник, наскільки точніший метод Б на цьому відео."
-                    ),
-                    action=None,
-                    rule_id="pose_filter_efficiency",
-                    details={"rejected_ratio": round(rejected_ratio, 3), "rejected": pose_rejected, "a_total": a_total},
-                ))
+
+
 
     # 11. Washboarding
     wash_ratio = _ratio(washboarding, total_behavior)

@@ -44,7 +44,8 @@ export default function UploadPage() {
     show_boxes: true, show_ids: true, show_confidence: false,
     show_keypoints: false, show_ramp: true, show_behaviors: false,
     show_counting_line: true, show_stats_overlay: false, show_tracks: false,
-    show_orientation: true, show_recent_events: false
+    show_orientation: true, show_recent_events: false,
+    show_defense_circles: true, show_crossing_badges: true
   });
 
   const { data: testVideos = [] } = useQuery({
@@ -147,7 +148,7 @@ export default function UploadPage() {
 
       {/* 2. CENTER COLUMN: Video Player */}
       <div className="flex-grow flex flex-col gap-4 min-w-0">
-        <div className={`card flex flex-col items-center p-0 overflow-hidden relative min-h-[400px] ${(!job || job.status !== 'complete') ? 'flex-grow justify-center' : 'justify-start'}`}>
+        <div className={`card flex flex-col items-center p-0 overflow-hidden relative min-h-[400px] ${job && job.status === 'complete' ? 'justify-start' : isProcessing ? 'flex-grow justify-start pt-10' : 'flex-grow justify-center'}`}>
           {!jobId && !isProcessing && (
             <div className="text-center select-none px-6 py-10 max-w-xl">
               <div className="relative w-32 h-32 mx-auto mb-8 animate-float">
@@ -162,35 +163,9 @@ export default function UploadPage() {
               <p className="text-base text-gray-400 mb-8">
                 Завантажте відеозапис вулика або спробуйте демо-запис
               </p>
-              {testVideos.length > 0 ? (
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">
-                    Демо-записи
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    {testVideos.map(tv => (
-                      <button
-                        key={tv}
-                        onClick={() => {
-                          setTestVideoName(tv);
-                          setFile(null);
-                        }}
-                        disabled={isProcessing}
-                        className={`${testVideoName === tv ? 'bg-[var(--accent)] text-black border-[var(--accent)] shadow-[0_0_15px_var(--accent)]' : 'bg-[var(--accent)]/15 hover:bg-[var(--accent)]/25 text-[var(--accent)] border-[var(--accent)]/40'} py-2.5 px-4 rounded-lg border text-sm font-medium flex items-center gap-2 justify-center transition disabled:opacity-50`}
-                      >
-                        {testVideoName === tv ? '✓ Обрано' : '▶'} {tv}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-600 mt-3">
-                    або перетягніть свій файл у панель ліворуч
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">
-                  Перетягніть файл у панель ліворуч і натисніть «Запустити аналіз»
-                </p>
-              )}
+              <p className="text-sm text-gray-500">
+                Завантажте файл або оберіть демо-відео в панелі ліворуч
+              </p>
             </div>
           )}
 

@@ -94,25 +94,26 @@ class FrameAnnotator:
 
                 # HIGHLIGHT — glow для бджіл після перетину (тримається ~1.5 с)
                 # IN → зелений ✓, OUT → червоний ✓, REJECTED → сірий ✗ (pose-фільтр відсіяв)
-                hl = highlight_meta.get(int(track_id)) if highlight_meta else None
-                if hl is not None:
-                    if hl == "IN":
-                        glow_color, badge = (120, 255, 120), "IN ✓"
-                    elif hl == "OUT":
-                        glow_color, badge = (129, 129, 252), "OUT ✓"
-                    else:  # REJECTED
-                        glow_color, badge = (160, 160, 160), "✗ pose"
-                    cv2.rectangle(annotated_frame, (bx1 - 4, by1 - 4), (bx2 + 4, by2 + 4), glow_color, 2)
-                    (tw, th), _ = cv2.getTextSize(badge, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
-                    bg_x1, bg_y1 = bx1 - 6, max(0, by1 - 28)
-                    bg_x2, bg_y2 = bg_x1 + tw + 10, bg_y1 + th + 8
-                    cv2.rectangle(annotated_frame, (bg_x1, bg_y1), (bg_x2, bg_y2), glow_color, -1)
-                    cv2.putText(annotated_frame, badge, (bg_x1 + 5, bg_y2 - 4),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 2)
+                if self.viz_config.get("show_crossing_badges", True):
+                    hl = highlight_meta.get(int(track_id)) if highlight_meta else None
+                    if hl is not None:
+                        if hl == "IN":
+                            glow_color, badge = (120, 255, 120), "IN ✓"
+                        elif hl == "OUT":
+                            glow_color, badge = (129, 129, 252), "OUT ✓"
+                        else:  # REJECTED
+                            glow_color, badge = (160, 160, 160), "✗ pose"
+                        cv2.rectangle(annotated_frame, (bx1 - 4, by1 - 4), (bx2 + 4, by2 + 4), glow_color, 2)
+                        (tw, th), _ = cv2.getTextSize(badge, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
+                        bg_x1, bg_y1 = bx1 - 6, max(0, by1 - 28)
+                        bg_x2, bg_y2 = bg_x1 + tw + 10, bg_y1 + th + 8
+                        cv2.rectangle(annotated_frame, (bg_x1, bg_y1), (bg_x2, bg_y2), glow_color, -1)
+                        cv2.putText(annotated_frame, badge, (bg_x1 + 5, bg_y2 - 4),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 2)
 
                 # BOUNDING BOXES
                 if self.viz_config.get("show_boxes", True):
-                    thickness = 2 if track_id in [e["track_id"] for e in events] else 1
+                    thickness = 3 if track_id in [e["track_id"] for e in events] else 2
                     cv2.rectangle(annotated_frame, (bx1, by1), (bx2, by2), color, thickness)
                     if self.viz_config.get("show_confidence", True) and tracked_detections.confidence is not None:
                         conf = float(tracked_detections.confidence[i])
@@ -146,10 +147,10 @@ class FrameAnnotator:
                         dist = np.sqrt((hx - tx) ** 2 + (hy - ty) ** 2)
                         if dist > 10:
                             cv2.arrowedLine(annotated_frame, (tx, ty), (hx, hy),
-                                            (41, 180, 240), 1, tipLength=0.3)
+                                            (41, 180, 240), 2, tipLength=0.3)
 
         # 8.5 DEFENSE CLUSTERS — червоне коло довкола кластера
-        if defense_clusters:
+        if self.viz_config.get("show_defense_circles", True) and defense_clusters:
             for cluster in defense_clusters:
                 cx, cy = cluster["center"]
                 radius = int(cluster["radius"])

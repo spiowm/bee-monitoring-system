@@ -63,6 +63,8 @@ class VizConfig(BaseModel):
     show_tracks: bool = True
     show_orientation: bool = True
     show_recent_events: bool = True
+    show_defense_circles: bool = True
+    show_crossing_badges: bool = True
 
 class JobCreateResponse(BaseModel):
     job_id: str

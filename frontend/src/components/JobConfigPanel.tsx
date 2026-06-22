@@ -4,31 +4,35 @@ import { UploadCloud, Video, Settings, ChevronRight, ChevronDown, Sliders, Play,
 import type { ProcessConfig, VizConfig } from '../types';
 
 const VIZ_LABELS: Record<string, string> = {
-  show_boxes:         'Рамки',
-  show_ids:           'ID треків',
-  show_confidence:    'Впевненість',
-  show_keypoints:     'Ключові точки',
-  show_ramp:          'Рампа',
-  show_behaviors:     'Поведінки',
-  show_counting_line: 'Лінія підрахунку',
-  show_stats_overlay: 'Статистика',
-  show_tracks:        'Траєкторії',
-  show_orientation:   'Орієнтація',
-  show_recent_events: 'Останні події',
+  show_boxes:            'Рамки',
+  show_ids:              'ID треків',
+  show_confidence:       'Впевненість',
+  show_keypoints:        'Ключові точки',
+  show_ramp:             'Рампа',
+  show_behaviors:        'Поведінки',
+  show_counting_line:    'Лінія підрахунку',
+  show_stats_overlay:    'Статистика',
+  show_tracks:           'Траєкторії',
+  show_orientation:      'Орієнтація',
+  show_recent_events:    'Останні події',
+  show_defense_circles:  'Захист (кола)',
+  show_crossing_badges:  'Значки IN/OUT',
 };
 
 const VIZ_TOOLTIPS: Record<string, string> = {
-  show_boxes:         'Прямокутники навколо розпізнаних бджіл',
-  show_ids:           'Унікальні номери (track_id), які призначає алгоритм',
-  show_confidence:    'Відсоток впевненості моделі у правильності розпізнавання',
-  show_keypoints:     'Критичні точки на тілі (вимагає додаткових обчислень)',
-  show_ramp:          'Контур виявленої зони прилітної дошки (льотка)',
-  show_behaviors:     'Текстові підписи дій (фуражування, вентиляція тощо)',
-  show_counting_line: 'Лінія, перетин якої реєструє вліт або виліт',
-  show_stats_overlay: 'Напівпрозоре інформаційне табло вгорі відео',
-  show_tracks:        'Хвости, що показують шлях бджоли (повільна відмальовка)',
-  show_orientation:   'Стрілки напрямку тіла бджоли',
-  show_recent_events: 'Список останніх перетинів льотка збоку',
+  show_boxes:            'Прямокутники навколо розпізнаних бджіл',
+  show_ids:              'Унікальні номери (track_id), які призначає алгоритм',
+  show_confidence:       'Відсоток впевненості моделі у правильності розпізнавання',
+  show_keypoints:        'Критичні точки на тілі (вимагає додаткових обчислень)',
+  show_ramp:             'Контур виявленої зони прилітної дошки (льотка)',
+  show_behaviors:        'Текстові підписи дій (фуражування, вентиляція тощо)',
+  show_counting_line:    'Лінія, перетин якої реєструє вліт або виліт',
+  show_stats_overlay:    'Напівпрозоре інформаційне табло вгорі відео',
+  show_tracks:           'Хвости, що показують шлях бджоли (повільна відмальовка)',
+  show_orientation:      'Стрілки напрямку тіла бджоли',
+  show_recent_events:    'Список останніх перетинів льотка збоку',
+  show_defense_circles:  'Червоне коло навколо кластера охоронців (DEFENSE)',
+  show_crossing_badges:  'Значки IN ✓ / OUT ✓ / ✗ pose біля боксів після перетину лінії',
 };
 
 interface JobConfigPanelProps {
@@ -128,45 +132,31 @@ export default function JobConfigPanel({
         )}
       </div>
 
-      {/* Тестові відео */}
-      <div className="flex flex-wrap gap-2">
-        {testVideos.map(tv => (
-          <button
-            key={tv}
-            onClick={() => {
-              setTestVideoName(tv);
-              setFile(null);
+      {/* Тестові відео — спадний список */}
+      {testVideos.length > 0 && (
+        <div>
+          <label className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
+            <Play size={11} /> Демо-відео
+          </label>
+          <select
+            value={testVideoName ?? ''}
+            onChange={e => {
+              const val = e.target.value;
+              if (val) { setTestVideoName(val); setFile(null); }
+              else setTestVideoName(null);
             }}
             disabled={isProcessing}
-            className={`${testVideoName === tv ? 'bg-[var(--accent)] text-black font-bold' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'} text-xs py-1.5 px-3 rounded-lg flex-1 min-w-[110px] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5`}
+            className="w-full bg-[var(--bg-panel)] border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:border-[var(--accent)] focus:outline-none disabled:opacity-50 transition-colors"
           >
-            <Play size={11} /> {tv}
-          </button>
-        ))}
-        {testVideos.length === 0 && <span className="text-xs text-gray-600">Тестових відео немає</span>}
-      </div>
-
-      {/* Метод підрахунку */}
-      <div>
-        <label className="text-xs text-gray-400 mb-1 block">Метод підрахунку</label>
-        <div className="flex flex-col gap-2">
-          <label className="flex items-start gap-2 text-sm cursor-pointer">
-            <input type="radio" checked={config.approach === 'B'} onChange={() => set({ approach: 'B' })} className="accent-[var(--accent)] mt-0.5" />
-            <span>
-              <span className="font-medium text-[var(--accent)]">Б</span> — З валідацією пози
-              <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent)]/15 text-[var(--accent)] align-middle">рекомендовано</span>
-              <span className="block text-[11px] text-gray-500 mt-0.5">Перевіряє напрямок вектора голова→жало — точніший підрахунок</span>
-            </span>
-          </label>
-          <label className="flex items-start gap-2 text-sm cursor-pointer">
-            <input type="radio" checked={config.approach === 'A'} onChange={() => set({ approach: 'A' })} className="accent-[var(--accent)] mt-0.5" />
-            <span>
-              <span className="font-medium">А</span> — За траєкторією
-              <span className="block text-[11px] text-gray-500 mt-0.5">Фіксує перетин лінії за рухом центра бджоли</span>
-            </span>
-          </label>
+            <option value="">— не обрано —</option>
+            {testVideos.map(tv => (
+              <option key={tv} value={tv}>{tv}</option>
+            ))}
+          </select>
         </div>
-      </div>
+      )}
+
+
 
       {/* Розширені налаштування — toggle */}
       <button
@@ -213,6 +203,28 @@ export default function JobConfigPanel({
               )}
             </div>
           )}
+
+          {/* Метод підрахунку */}
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Метод підрахунку</label>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <input type="radio" checked={config.approach === 'B'} onChange={() => set({ approach: 'B' })} className="accent-[var(--accent)] mt-0.5" />
+                <span>
+                  <span className="font-medium text-[var(--accent)]">Б</span> — З валідацією пози
+                  <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent)]/15 text-[var(--accent)] align-middle">рекомендовано</span>
+                  <span className="block text-[11px] text-gray-500 mt-0.5">Перевіряє напрямок вектора голова→жало — точніший підрахунок</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <input type="radio" checked={config.approach === 'A'} onChange={() => set({ approach: 'A' })} className="accent-[var(--accent)] mt-0.5" />
+                <span>
+                  <span className="font-medium">А</span> — За траєкторією
+                  <span className="block text-[11px] text-gray-500 mt-0.5">Фіксує перетин лінії за рухом центра бджоли</span>
+                </span>
+              </label>
+            </div>
+          </div>
 
           {/* Детекція і трекінг */}
           <button
@@ -317,15 +329,15 @@ export default function JobConfigPanel({
       </button>
       {showViz && (
         <div className="grid grid-cols-2 gap-2 bg-[var(--bg-panel)] p-3 rounded-lg border border-gray-800 text-xs">
-          {Object.keys(vizConfig).map(k => (
+          {Object.keys(VIZ_LABELS).map(k => (
             <label key={k} className="flex items-center gap-1.5 cursor-pointer" title={VIZ_TOOLTIPS[k] ?? ''}>
               <input
                 type="checkbox"
-                checked={(vizConfig as any)[k]}
+                checked={(vizConfig as any)[k] ?? true}
                 onChange={e => setVizConfig({ ...vizConfig, [k]: e.target.checked })}
                 className="accent-[var(--accent)] rounded"
               />
-              <span className="truncate border-b border-dashed border-gray-600/50 hover:border-gray-400 pb-0.5">{VIZ_LABELS[k] ?? k.replace('show_', '')}</span>
+              <span className="truncate border-b border-dashed border-gray-600/50 hover:border-gray-400 pb-0.5">{VIZ_LABELS[k]}</span>
             </label>
           ))}
         </div>
@@ -342,7 +354,7 @@ export default function JobConfigPanel({
           className="accent-[var(--accent)] mt-0.5"
         />
         <span>
-          <span className="font-medium text-gray-200">⚡ Швидкий режим — без відео</span>
+          <span className="font-medium text-gray-200">Швидкий режим — без відео</span>
           <span className="block text-[11px] text-gray-500 mt-0.5">Тільки підрахунок і статистика, без рендеру боксів — значно швидше.</span>
         </span>
       </label>

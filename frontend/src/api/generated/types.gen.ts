@@ -368,6 +368,14 @@ export type VizConfig = {
      * Show Recent Events
      */
     show_recent_events?: boolean;
+    /**
+     * Show Defense Circles
+     */
+    show_defense_circles?: boolean;
+    /**
+     * Show Crossing Badges
+     */
+    show_crossing_badges?: boolean;
 };
 
 export type ListJobsJobsGetData = {
