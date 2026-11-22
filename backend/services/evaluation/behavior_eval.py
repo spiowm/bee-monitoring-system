@@ -211,25 +211,25 @@ def _compute_event_metrics_for_class(
     gt_eps = get_episodes(gt_frames, gap_frames)
     pred_eps = get_episodes(pred_frames, gap_frames)
     
-    tp = 0
-    fp = 0
-    
+    # Зіставлення один-до-одного: кожен еталонний епізод може бути зарахований
+    # лише раз. Попередня версія додавала індекс у множину, але інкрементувала
+    # лічильник збігів на КОЖНЕ передбачення, тож зайві передбачення, що накривали
+    # вже зарахований епізод, випадали і з TP, і з FP — precision була завищена
+    # (на 20230609b-def: 35 передбачених епізодів при TP+FP=12).
     matched_gt = set()
-    matched_pred = 0
+    tp = 0
     for p_start, p_end in pred_eps:
-        matched = False
         for i, (g_start, g_end) in enumerate(gt_eps):
+            if i in matched_gt:
+                continue
             if p_end >= g_start - gap_frames and p_start <= g_end + gap_frames:
                 matched_gt.add(i)
-                matched = True
+                tp += 1
                 break
-        if matched:
-            matched_pred += 1
-            
-    tp = len(matched_gt)
-    fp = len(pred_eps) - matched_pred
-    fn = len(gt_eps) - len(matched_gt)
-    
+
+    fp = len(pred_eps) - tp
+    fn = len(gt_eps) - tp
+
     prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
     f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0

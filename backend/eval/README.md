@@ -33,6 +33,8 @@ uv run python -m eval.ab_counting_eval                  # counting: Approach A v
 | `ab_threshold_sweep.py` | Sweeps B's rejection angle offline and compares against keypoints shuffled between bees. |
 | `ab_permutation_test.py` | Permutation test: does the pose filter beat random rejection of the same number of events? |
 
+Raw outputs of these scripts (detections at imgsz 1920, real and shuffled keypoints, sweeps, permutation test) are in `results/`.
+
 ## Defense episodes
 
 | Module | Purpose |
