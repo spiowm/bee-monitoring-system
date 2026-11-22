@@ -1,126 +1,90 @@
-# Frontend — React + TypeScript
+# Frontend: React dashboard
 
-Дашборд для завантаження відео, live-моніторингу процесингу, дослідницької аналітики та оцінки точності системи проти ground-truth датасету.
+Web UI for uploading hive videos, watching processing live, browsing past runs and checking accuracy against ground truth. The interface language is Ukrainian.
 
-## Запуск
+## Running
 
 ```bash
 cd frontend
+cp .env.example .env    # VITE_API_URL=http://localhost:8000
 npm install
-npm run dev   # http://localhost:5173
+npm run dev             # http://localhost:5173
 ```
 
-Файл `frontend/.env`:
+Other scripts:
 
-```env
-VITE_API_URL=http://localhost:8000
+```bash
+npm run build          # type check + production build
+npm run lint           # ESLint
+npm run generate-api   # regenerate the API client from ../backend/openapi.json
 ```
 
-## Стек
+## Stack
 
-- React 19 + TypeScript + Vite
-- TailwindCSS (утиліти) + CSS variables (дизайн-токени)
-- TanStack React Query v5 (серверний стан)
-- Recharts (графіки)
-- `@hey-api/openapi-ts` — генерований TypeScript клієнт з OpenAPI бекенда
-- lucide-react (іконки)
+- React 19, TypeScript, Vite
+- TanStack Query for server state and polling
+- Recharts for charts
+- Tailwind utilities plus CSS variables as design tokens
+- API client generated from the backend's OpenAPI schema with `@hey-api/openapi-ts`
+- lucide-react icons
 
-## Структура
+## Pages
+
+**`/` Upload.** Pick a demo video or drop your own file, optionally open advanced settings (Approach A or B, thresholds, overlays, fast mode without video) and start. While the job runs, the page polls `GET /jobs/{id}/live` every 2 seconds and shows counts, bees on the ramp, behavior bars and a ticker of the latest crossing events. When it finishes, the annotated video plays inline with beekeeper recommendations below it.
+
+**`/analytics` Analytics.** Totals across runs, behavior distribution, traffic per run and a history table. Each run opens a details modal (statistics, pose filter breakdown, recommendations, events). Selecting 2 to 4 runs opens a comparison with bar and radar charts, for example Approach A versus B on the same video.
+
+**`/evaluation` Accuracy.** Choose a video that has ground truth and run a behavior evaluation. The result shows overall accuracy, per-class precision, recall and F1, event-level foraging metrics, a confusion matrix, and the ground-truth video next to BuzzTrack's output, played in sync. The report can be downloaded as Markdown.
+
+## Structure
 
 ```
 src/
-├── api/generated/                 # Авто-генерований клієнт — не редагувати вручну
-├── hooks/
-│   └── useLocalStorageState.ts    # SSR-safe useState з мапінгом у localStorage
+├── api/generated/                 # generated client, do not edit by hand
+├── hooks/useLocalStorageState.ts  # useState persisted to localStorage
 ├── pages/
-│   ├── Upload.tsx                 # Завантаження + конфіг + live + результат
-│   ├── Analytics.tsx              # Hero A vs B + історія + порівняння runs
-│   └── Evaluation.tsx             # Auto A vs B vs GT з 3-колонним відео
+│   ├── Upload.tsx
+│   ├── Analytics.tsx
+│   └── Evaluation.tsx
 └── components/
-    ├── JobConfigPanel.tsx         # Quick Start + advanced toggle
-    ├── LiveStatsPanel.tsx         # IN/OUT, FPS, pose breakdown, behavior bars, EventTicker
-    ├── JobDetailModal.tsx         # Деталі job: header chips, BehaviorLegend,
-    │                              #   PoseFilterCard, RecommendationsSection, графіки, події
-    ├── RunComparisonModal.tsx     # Порівняння 2-4 jobs (BarChart + RadarChart)
-    ├── VideoPlayer.tsx            # 0.25×–4× швидкість + клавіатура (Space, ← →, J/K/L, …)
-    ├── SideBySideVideoPlayer.tsx  # Синхронізовані N відео для Evaluation
-    ├── EventTicker.tsx            # Стрічка останніх 10 подій
-    ├── BehaviorLegend.tsx         # Hover-popover опис поведінки
-    ├── PoseFilterCard.tsx         # Approach B: «А зарахував би N, B залишив M, відсіяв K»
-    ├── RecommendationsSection.tsx # Картки рекомендацій з severity badges
-    ├── EvaluationKPICards.tsx     # 2×2 KPI блоки на Evaluation
-    └── ApproachWinnerBars.tsx     # Метрики A vs B з 🏆 переможцем
+    ├── JobConfigPanel.tsx         # video choice and processing settings
+    ├── LiveStatsPanel.tsx         # live counts, behavior bars, event ticker
+    ├── EventTicker.tsx            # last 10 crossing events
+    ├── PoseFilterCard.tsx         # Approach B: what the pose filter rejected
+    ├── RecommendationsSection.tsx # beekeeper recommendation cards
+    ├── BehaviorLegend.tsx         # behavior class descriptions on hover
+    ├── JobDetailModal.tsx         # details of one run
+    ├── RunComparisonModal.tsx     # comparison of 2 to 4 runs
+    ├── BehaviorEvalResults.tsx    # accuracy metrics and confusion matrix
+    ├── VideoPlayer.tsx            # player with speed control and shortcuts
+    └── SideBySideVideoPlayer.tsx  # several videos played in sync
 ```
 
-## API клієнт
+Use the generated client in `src/api/generated` for API calls. Links to videos and the Markdown report are built from `VITE_API_URL`.
 
-Генерується з OpenAPI схеми бекенда (бекенд має бути запущений):
+## Video player shortcuts
 
-```bash
-npm run generate-api
-```
+When the player has focus:
 
-Імпортувати тільки з `./api/generated` — ніяких прямих fetch/axios.
+| Key | Action |
+|---|---|
+| Space / K | play or pause |
+| ← / → | seek ±5 s |
+| J / L | seek ±10 s |
+| , / . | previous or next frame |
+| 0 to 9 | jump to 0%, 10%, …, 90% |
+| M | mute |
+| + / − | speed up or down (0.25× to 4×) |
 
-## Сторінки
+`SideBySideVideoPlayer` supports the same keys; the first video is the master and the others follow its time.
 
-**`/` Завантаження** — основний workflow:
-1. Hero empty state з демо-кнопками тестових відео
-2. Sidebar `JobConfigPanel` у Quick Start mode (drag-drop + Approach + Start); решта — за toggle «Розширені налаштування»
-3. Submission → polling `GET /jobs/{id}/live` кожні 2с
-4. `LiveStatsPanel`: IN/OUT/FPS, pose-confirmed/fallback/rejected (Approach B), поведінкові бари, BehaviorLegend, EventTicker (останні 10 подій з кольорами IN/OUT/REJECTED)
-5. Після завершення — вбудований `VideoPlayer` зі швидкостями і клавішами
+## Design tokens
 
-**`/analytics` Аналітика** — дослідницький дашборд:
-- Empty state з CTA, коли немає jobs
-- Hero «Метод А проти Б» вгорі (золотий бордюр, Trophy badge, висновок)
-- KPI-картки (всього сесій, IN/OUT, баланс)
-- Загальний розподіл поведінки (PieChart) і трафік по сесіях (BarChart)
-- Таблиця історії з multi-select (2–4 → `RunComparisonModal`)
-- Кнопка деталей → `JobDetailModal` (включає `PoseFilterCard` для Approach B і `RecommendationsSection`)
+CSS variables live in `src/index.css`. Use the semantic colours (`--color-in`, `--color-out`, `--behavior-*`) rather than raw Tailwind colours:
 
-**`/evaluation` Точність** — auto A vs B vs GT:
-- Селектор пари відео+GT (зберігається у localStorage)
-- Один клік запускає **дві паралельні задачі** (approach=A і approach=B)
-- Два live-прогресу
-- Після завершення:
-  - `ApproachWinnerBars` — 4 метрики (Accuracy, F1 IN, F1 OUT, MAE) з 🏆 біля переможця
-  - `SideBySideVideoPlayer` 3-колонне (Pred-A | Pred-B | GT, синхронізовані)
-  - Per-метод `EvaluationKPICards` (2×2)
-  - Кумулятивний area chart (GT vs Pred-A vs Pred-B)
-
-## VideoPlayer — клавіатурні шорткати
-
-Коли контейнер плеєра має фокус:
-
-| Клавіша | Дія |
-|---------|-----|
-| Space / K | play / pause |
-| ← / → | seek ±5 с |
-| J / L | seek ±10 с |
-| , / . | покадрово назад/вперед |
-| 0–9 | стрибок до 0%, 10%, …, 90% |
-| M | mute toggle |
-| + / − | швидкість на крок вгору/вниз |
-
-`SideBySideVideoPlayer` має той самий набір (master = перше відео, інші sync через `currentTime`).
-
-## LocalStorage
-
-| Ключ | Призначення |
-|------|-------------|
-| `viz_config` | VizConfig toggles (Upload) |
-| `eval_basename` | Остання вибрана GT-пара (Evaluation) |
-
-## Дизайн-система
-
-CSS-змінні визначено в `index.css`. Семантичні кольори (`--color-in`, `--color-out`, `--behavior-*`) — використовувати їх, не Tailwind класи `text-yellow-400`.
-
-Поведінкові кольори:
-
-| Клас | CSS-змінна | Колір |
-|------|------------|-------|
-| Foraging (Фуражування) | `--behavior-foraging` | зелений |
-| Fanning (Вентиляція) | `--behavior-fanning` | блакитний |
-| Washboarding (Полірування) | `--behavior-washboarding` | помаранчевий |
-| Defense (Захист) | `--behavior-defense` | червоний |
+| Behavior | Variable | Colour |
+|---|---|---|
+| Foraging | `--behavior-foraging` | green |
+| Fanning | `--behavior-fanning` | blue |
+| Washboarding | `--behavior-washboarding` | orange |
+| Defense | `--behavior-defense` | red |

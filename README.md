@@ -1,119 +1,147 @@
-# Bee Monitoring System (BuzzTrack)
+# BuzzTrack: bee traffic and behavior monitoring at the hive entrance
 
-Комплексна AI-система для комп'ютерного зору та аналізу поведінки бджіл на прилітній дошці вулика. Проєкт створено для автоматизованого моніторингу активності бджолиних сімей, підрахунку трафіку (вліт/виліт), розпізнавання поведінкових патернів за академічною специфікацією PLOS ONE 2025 та формування дієвих рекомендацій пасічнику.
+Computer vision system that watches a video of a beehive entrance, tracks every bee, counts how many fly in and out, and flags colony behaviors such as fanning (ventilation) and defense. Built as my bachelor's thesis at Lviv Polytechnic National University (2026) and extended into a research paper.
 
-![Bee Monitoring Preview](https://img.shields.io/badge/Status-Active_Development-success)
-![Python 3.12](https://img.shields.io/badge/Python-3.12+-blue.svg)
-![React](https://img.shields.io/badge/Frontend-React_Vite-61DAFB.svg)
-![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![YOLO11](https://img.shields.io/badge/Ultralytics-YOLO11--pose-111F68)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React_19-TypeScript-61DAFB?logo=react&logoColor=black)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white)
+![MLflow](https://img.shields.io/badge/MLflow-DagsHub-0194E2?logo=mlflow&logoColor=white)
 
----
+![Annotated hive entrance: boxes per tracked bee, head-to-stinger arrows, the detected ramp and live counters](docs/images/demo.gif)
 
-## Архітектура проєкту
+## Why
 
-Система побудована як монорепозиторій із трьох повністю незалежних модулів. Кожен має власний `README.md` з детальною інструкцією.
+Opening a hive to check on a colony disturbs it and takes the beekeeper's time. Most of what matters (is the colony foraging, is it overheating, is it being robbed) is visible at the entrance. BuzzTrack turns a camera pointed at the landing board into numbers and plain-language alerts.
+
+## What it does
+
+- **Detects bees and their orientation** with a single YOLO11-pose model: a box plus two keypoints (head and stinger) per bee, so heading comes for free without a second network.
+- **Finds the entrance automatically** with a separate keypoint model for the landing ramp (4 corners), so the counting line does not have to be drawn by hand.
+- **Tracks bees** with ByteTrack plus a short-gap track stitching step.
+- **Counts traffic in two ways**: A counts every crossing of the line; B additionally checks that the bee's body points in the direction it moves and keeps the rejected crossings for audit, drawn on the video as a grey "✗ pose" glow.
+- **Classifies behavior** per track with rules adapted from Sledevič et al. (PLOS ONE, 2025): foraging, fanning, washboarding, plus a multi-bee defense detector (guards clustering around an intruder).
+- **Evaluates itself** against an annotated ground-truth dataset: the Accuracy page scores behavior per class (precision, recall, F1, confusion matrix) next to a ground-truth video, and offline scripts in `backend/eval/` score counting (TP/FP/FN, F1, MAE), threshold sweeps and a permutation test.
+- **Gives the beekeeper advice**: about a dozen deterministic rules turn the statistics into alerts like "possible overheating" or "the colony is defending the entrance".
+
+## Screenshots
+
+> The web UI is in Ukrainian.
+
+**Upload and live processing.** Annotated video, hive statistics, behavior breakdown and beekeeper recommendations.
+
+![Upload page](docs/images/ui_upload.png)
+
+**Accuracy.** Predicted behavior against ground-truth annotations on the same video.
+
+![Evaluation page](docs/images/ui_evaluation.png)
+
+**Analytics.** Run history, and a comparison of two runs: here Approach A versus B on the same clip, where the pose filter removes crossings that A would count.
+
+| Run history | A vs B comparison |
+|---|---|
+| ![Analytics page](docs/images/ui_analytics.png) | ![Run comparison](docs/images/ui_compare.png) |
+
+## How it works
 
 ```mermaid
-graph TD
-    User["Користувач (браузер)"]
-
-    subgraph Research ["research/ — ML-навчання"]
-        R1["Датасет (Kaggle)"]
-        R2["YOLO training + MLflow"]
-        R3["best.pt моделі"]
-        R1 --> R2 --> R3
-    end
-
-    subgraph Backend ["backend/ — FastAPI"]
-        B1["POST /jobs (відео)"]
-        B2["YOLO + ByteTrack"]
-        B3["Behavior + Defense"]
-        B4["Counting (A/B)"]
-        B5["Annotated H.264"]
-        B6[("MongoDB")]
-        B7["Recommendations engine"]
-        B8["POST /jobs/evaluate (GT)"]
-        B1 --> B2 --> B3 --> B4 --> B5
-        B4 -->|"стат. + події"| B6
-        B5 --> B7 --> B6
-        B8 --> B2
-    end
-
-    subgraph Frontend ["frontend/ — React + Vite"]
-        F1["/ — Завантаження + Live"]
-        F2["/analytics — Дослідницький дашборд"]
-        F3["/evaluation — A vs B vs GT"]
-    end
-
-    R3 -.->|"моделі"| B2
-    User --> F1 & F2 & F3
-    F1 -->|"upload"| B1
-    F2 <-->|"REST"| B6
-    F3 -->|"eval"| B8
-    B5 -->|"/static/output/"| F1 & F2 & F3
-
-    classDef comp fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    classDef io fill:#10b981,stroke:#047857,color:#fff
-    classDef db fill:#f59e0b,stroke:#b45309,color:#fff
-    class B1,B2,B3,B4,B5,B7,B8,F1,F2,F3,R1,R2,R3 comp
-    class User io
-    class B6 db
+flowchart LR
+    V[Hive entrance video] --> D[YOLO11-pose<br/>box + head/stinger]
+    V --> R[Ramp detector<br/>4 corner keypoints]
+    D --> T[ByteTrack<br/>+ track stitching]
+    T --> B[Behavior rules<br/>foraging / fanning / washboarding]
+    B --> DF[Defense clusters]
+    DF --> C[Line crossing count<br/>A: trajectory · B: pose-validated]
+    R --> C
+    C --> A[Annotated H.264 video]
+    C --> M[(MongoDB)]
+    M --> REC[Beekeeper recommendations]
+    M --> UI[React dashboard]
 ```
 
-1. **`research/` — ML & MLOps середовище**
-   - Навчання моделей YOLO-pose для визначення пози бджіл (голова + жало) та детектора рампи (4 кутових keypoints).
-   - Hydra-конфіг, трекінг експериментів через DagsHub/MLflow.
-   - Детальна інструкція: [research/README.md](research/README.md).
+The backend runs this as a 7-stage pipeline (detection, tracking, track update, behavior, defense, counting, annotation) in a background job; the frontend polls live statistics while a video is processed.
 
-2. **`backend/` — REST API сервер (FastAPI)**
-   - 7-стадійний пайплайн обробки відео: Detection → Tracking → TrackUpdate → Behavior → **Defense** → Counting → Annotation.
-   - Класифікація поведінки за академічною специфікацією PLOS ONE 2025: фуражування, вентиляція, полірування, захист.
-   - Два методи підрахунку (A — траєкторія, B — pose-validated) з прозорим аудитом «що відсіяно».
-   - Evaluation-режим проти ground-truth датасету `tracking_and_behavior` (TP/FP/FN, F1, MAE).
-   - Rule-based recommendations engine для пасічника.
-   - Детальна інструкція: [backend/README.md](backend/README.md).
+## Results and findings
 
-3. **`frontend/` — Веб-інтерфейс (React 19 + TypeScript + Vite)**
-   - Три сторінки: Завантаження (live-моніторинг), Аналітика (порівняння A vs B), Точність (auto A vs B vs GT).
-   - Спільний `VideoPlayer` зі швидкостями 0.25×–4× та YouTube-style клавішами.
-   - Демо-готові компоненти: `RecommendationsSection`, `PoseFilterCard`, `SideBySideVideoPlayer`.
-   - Детальна інструкція: [frontend/README.md](frontend/README.md).
+The model was trained on 400 annotated frames from 8 hives. Validation used whole hives the model had never seen (hive-based split), not a random split of frames.
 
----
+| Model | Validation | Pose mAP@50 | Mean / median orientation error |
+|---|---|---|---|
+| YOLO11s-pose, imgsz 1920 | 2 held-out hives | 97.7% | 4.6° / 1.4° |
 
-## Швидкий старт
+What I learned from evaluating it properly matters more than the headline number:
 
-Потрібна запущена **MongoDB** (локально або Docker). Все Python-середовище — через `uv`.
+**1. A random split hides a failure mode.** With frames split at random, every run looks fine. Holding out whole hives shows that one hive of eight (the densest one) does not generalize from the other seven: orientation error jumps from 4–9° to 27° and 57°, while mAP drops much less. Orientation error turned out to be a more sensitive diagnostic than mAP.
+
+![Cross-hive validation](docs/images/cross_hive_validation.png)
+
+**2. Pose helps counting, but only a little.** The angle between a bee's body and its motion is a real signal (median 46° versus 74° when keypoints are shuffled between bees). Using it to reject crossings (Approach B) raises counting F1, but a permutation test shows most of that gain also comes from simply discarding events: orientation itself adds about +1.8 percentage points (combined p = 0.009 over three videos). The dominant counting errors are track fragmentation and the same bee crossing the line repeatedly, where pose and motion agree anyway.
+
+![Pose filter and counting](docs/images/pose_filter_counting.png)
+
+**3. Single-pass pose keeps cost flat.** Inference time of the one-stage pose model does not depend on how many bees are in the frame (correlation r ≈ −0.13 over 2 to 33 bees), whereas a detect-then-crop two-stage design grows linearly with every bee.
+
+**Limitations.** Behavior classification is rule-based and is the weakest part: per-bee F1 for fanning ranges from 27% to 58% depending on the video. Ground-truth crossing events are derived from annotated tracks because the dataset has no crossing labels, and the dataset covers 8 hives, so the per-hive generalization result is itself a small-sample one.
+
+## Tech stack
+
+| Area | Tools |
+|---|---|
+| ML | PyTorch, Ultralytics YOLO11-pose, Supervision (ByteTrack), OpenCV, NumPy, pandas |
+| Experiments | Hydra configs, MLflow on DagsHub, Kaggle GPU (T4) for training |
+| Backend | FastAPI, Motor (async MongoDB), Pydantic v2, FFmpeg |
+| Frontend | React 19, TypeScript, Vite, TanStack Query, Recharts, Tailwind, client generated from OpenAPI |
+
+## Repository layout
+
+```
+backend/    FastAPI app, video pipeline, evaluation against ground truth
+  services/   pipeline stages, counter, behavior rules, annotator, recommendations
+  eval/       offline evaluation and diagnostics (cached detections, sweeps, permutation test)
+  tests/      unit tests for counting and orientation
+frontend/   React dashboard: Upload, Analytics, Accuracy pages
+research/   dataset download and split, YOLO training with Hydra + MLflow, benchmarks
+```
+
+Each module has its own README with details: [backend](backend/README.md), [frontend](frontend/README.md), [research](research/README.md).
+
+## Running locally
+
+Requirements: Python 3.12 with [uv](https://docs.astral.sh/uv/), Node.js 20+, FFmpeg, and MongoDB (local or Atlas). A CUDA GPU is optional but makes processing much faster.
 
 ```bash
-# 1. Backend
-cd backend && uv sync && uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+# MongoDB in a container
+docker run -d --name bee-mongo -p 27017:27017 mongo:7
 
-# 2. Frontend (інше терміналом)
-cd frontend && npm install && npm run dev   # http://localhost:5173
+# Backend: http://localhost:8000/docs
+cd backend
+cp .env.example .env        # set MONGO_URI=mongodb://localhost:27017
+uv sync
+uv run uvicorn main:app --port 8000
+
+# Frontend: http://localhost:5173
+cd ../frontend
+cp .env.example .env        # VITE_API_URL=http://localhost:8000
+npm install
+npm run dev
 ```
 
-Потрібно у `backend/.env`:
+Trained weights for the bee pose model and the ramp detector are in `backend/data/models/`. Demo videos and ground truth for the Accuracy page come from the [tracking and behavior dataset](https://data.mendeley.com/datasets/8gb9r2yhfc/6) and are expected in `research/datasets/raw/tracking_and_behavior/<video>/`; the training datasets are downloaded by scripts described in [research/README.md](research/README.md).
 
-```env
-MONGO_URI=mongodb://localhost:27017
+Tests:
+
+```bash
+cd backend && uv run pytest
 ```
 
-Та у `frontend/.env`:
+## Data and credits
 
-```env
-VITE_API_URL=http://localhost:8000
-```
+- Bee pose and ramp keypoint data: Sledevič et al., [Keypoint-Based Bee Orientation Estimation and Ramp Detection at the Hive Entrance](https://doi.org/10.3390/agriculture14111890), *Agriculture*, 2024. Using the trained model for model-assisted labeling in AnyLabeling, I prepared 350 more annotated frames (kept separate from the reported training runs).
+- Tracking and behavior ground truth: Sledevič & Matuzevičius, [Mendeley Data, DOI 10.17632/8gb9r2yhfc.6](https://data.mendeley.com/datasets/8gb9r2yhfc/6), described in [PLOS ONE, 2025](https://doi.org/10.1371/journal.pone.0318401). The behavior rules follow the definitions from that paper.
 
----
+Thesis supervisor: Volodymyr Shymanskyi, Lviv Polytechnic National University.
 
-## Ключові фічі
+## License
 
-- **Підрахунок трафіку** з прозорим показом «що відсіяв pose-фільтр» на самому відео (сірий glow «✗ pose» на бджолах, які зарахував би лише Approach A).
-- **Defense detection** — кластерний детектор охоронців довкола чужинців (PLOS ONE Rdef/Adef/Tdef).
-- **Evaluation на GT** — сторінка `/evaluation` запускає A і B паралельно проти однакових ground-truth анотацій з датасету `tracking_and_behavior` і показує переможця по 4 метриках.
-- **Live event ticker** — стрічка останніх 10 подій під час обробки.
-- **Поради пасічнику** — рекомендації з severity (info/warning/critical): висока вентиляція → перегрів, дисбаланс трафіку → роєння, defense events → атака.
-
----
-*Зроблено для дослідження та автоматизації пасік.*
+Code is released under the [MIT License](LICENSE). The datasets belong to their authors and are not covered by it.
