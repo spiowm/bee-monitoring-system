@@ -1,0 +1,3 @@
+*.ipynb linguist-documentation
+frontend/src/api/generated/** linguist-generated
+backend/openapi.json linguist-generated
