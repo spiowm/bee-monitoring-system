@@ -3,7 +3,7 @@
 
 Не змінює жоден файл проєкту — monkey-patches поверх behavior_eval.
 Запуск з backend/:
-    uv run python run_defense_episode_detail.py
+    uv run python -m eval.run_defense_episode_detail
 """
 import sys
 import json
@@ -64,7 +64,7 @@ def main():
     import yaml
 
     # ── Config ──
-    config_path = Path(__file__).parent / "config" / "eval_config.yaml"
+    config_path = Path(__file__).resolve().parent.parent / "config" / "eval_config.yaml"
     with open(config_path) as f:
         yaml_cfg = yaml.safe_load(f) or {}
 

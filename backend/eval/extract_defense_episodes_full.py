@@ -2,7 +2,7 @@
 Відтворює рівно ту ж логіку що в _compute_event_metrics_for_class.
 
 Запуск (з backend/):
-    uv run python extract_defense_episodes_full.py /tmp/eval_def_result.json
+    uv run python -m eval.extract_defense_episodes_full /tmp/eval_def_result.json
 """
 import json
 import sys

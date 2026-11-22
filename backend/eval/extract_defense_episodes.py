@@ -1,7 +1,7 @@
 """Читає JSON з eval_cli, самостійно відтворює логіку _compute_event_metrics_for_class
 і виводить детальні frame-ids кожного GT/Pred episode для ручної перевірки.
 
-Запуск: python extract_defense_episodes.py /tmp/eval_def_result.json
+Запуск: uv run python -m eval.extract_defense_episodes /tmp/eval_def_result.json
 """
 import json
 import sys

@@ -8,9 +8,7 @@ backend/data/
 
 # Secrets & Config
 .env
-.context/
-_context/
-123/
+.notes
 
 # Python & OS
 __pycache__/

@@ -2,7 +2,7 @@
 episode frame-ids для defense event-level метрики.
 
 Запуск після eval_cli:
-    python eval_defense_episodes.py /tmp/eval_def_result.json
+    uv run python -m eval.eval_defense_episodes /tmp/eval_def_result.json
 """
 import json
 import sys
