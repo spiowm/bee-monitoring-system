@@ -37,11 +37,9 @@ Opening a hive to check on a colony disturbs it and takes the beekeeper's time. 
 
 ![Evaluation page](docs/images/ui_evaluation.png)
 
-**Analytics.** Run history, and a comparison of two runs: here Approach A versus B on the same clip, where the pose filter removes crossings that A would count.
+**Analytics.** Run history with a comparison of selected runs: here Approach A versus B on the same clip, where the pose filter removes crossings that A would count.
 
-| Run history | A vs B comparison |
-|---|---|
-| ![Analytics page](docs/images/ui_analytics.png) | ![Run comparison](docs/images/ui_compare.png) |
+![Run comparison](docs/images/ui_compare.png)
 
 ## How it works
 
