@@ -27,19 +27,13 @@ Opening a hive to check on a colony disturbs it and takes the beekeeper's time. 
 
 ## Screenshots
 
-> The web UI is in Ukrainian.
-
-**Upload and live processing.** Annotated video, hive statistics, behavior breakdown and beekeeper recommendations.
+The dashboard (UI in Ukrainian): upload a video, watch it being processed, get the annotated video, hive statistics and recommendations.
 
 ![Upload page](docs/images/ui_upload.png)
 
-**Accuracy.** Predicted behavior against ground-truth annotations on the same video.
-
-![Evaluation page](docs/images/ui_evaluation.png)
-
-**Analytics.** Run history with a comparison of selected runs: here Approach A versus B on the same clip, where the pose filter removes crossings that A would count.
-
-![Run comparison](docs/images/ui_compare.png)
+| Accuracy: ground truth next to BuzzTrack's output | Analytics: Approach A versus B on the same clip |
+|---|---|
+| ![Ground truth vs BuzzTrack](docs/images/ui_gt_vs_pred.png) | ![Run comparison](docs/images/ui_compare.png) |
 
 ## How it works
 
