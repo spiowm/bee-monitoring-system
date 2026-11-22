@@ -136,4 +136,4 @@ Thesis supervisor: Volodymyr Shymanskyi, Lviv Polytechnic National University.
 
 ## License
 
-Code is released under the [MIT License](LICENSE). The datasets belong to their authors and are not covered by it.
+Copyright (c) 2026 Oleksii Tatarchynskyi. Released under the [GNU AGPL-3.0](LICENSE), the same license as [Ultralytics YOLO](https://github.com/ultralytics/ultralytics), which the detection and pose models are built and trained with. The datasets belong to their authors and are not covered by it.
